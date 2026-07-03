@@ -1,0 +1,198 @@
+%% nilHMM methods paper — preprint.
+%% BASE: RILAB bioRxiv template (rilabRxiv.cls, genetics.bst) — the lab's
+%% preprint styling/workflow.
+%% STRUCTURE: Oxford Bioinformatics — structured abstract (Motivation/Results/
+%% Availability/Contact), Intro / Materials & Methods / Results / Discussion,
+%% and OUP back-matter (Conflicts, Funding, Data availability, Author
+%% contributions). Reproduced in RILAB-compatible LaTeX; port to
+%% oup-authoring-template.cls at submission (bundle kept in zealhmm/agent/).
+
+\documentclass[9pt,twocolumn,twoside]{rilabRxiv}
+% Use the documentclass option 'lineno' to view line numbers
+\setlength{\marginparwidth}{2cm}
+\usepackage[textsize=tiny,colorinlistoftodos]{todonotes} % comments in margins
+\definecolor{cornflowerblue}{rgb}{0.39, 0.58, 0.93}
+
+%%%%%%% Add comments in color
+\newcommand{\ms}[1]{{\small \textcolor{green}{#1}}}
+\newcommand{\jri}[1]{{\small \textcolor{red}{#1}}}
+\newcommand{\citex}[1]{{\small \textcolor{red}{CITE(#1)}}}
+\newcommand{\X}{{\textcolor{red}{X}}}
+
+\newcolumntype{b}{X}
+\newcolumntype{s}{>{\hsize=.5\hsize}X}
+
+% Set supplement numbers to S and start counting newly
+\newcommand{\beginsupplement}{%
+        \setcounter{table}{0}
+        \renewcommand{\thetable}{S\arabic{table}}%
+        \setcounter{figure}{0}
+        \renewcommand{\thefigure}{S\arabic{figure}}%
+     }
+
+\usepackage{hyperref}
+
+\title{Simulation-calibrated HMM ancestry calling for near-isogenic lines across sequencing modalities (nilHMM)}
+
+\author[$\ast$,1]{Fausto Rodr\'iguez-Zapata}
+\author[$\ast$]{Author list to be finalized}
+\author[$\ast$,1]{Rub\'en Rell\'an-\'Alvarez}
+
+\affil[$\ast$]{Department of Molecular and Structural Biochemistry, North Carolina State University, Raleigh, NC, USA}
+
+\keywords{ancestry inference, hidden Markov model, near-isogenic lines, simulation calibration, low-coverage sequencing, RNA-seq}
+
+\runningtitle{Simulation-calibrated HMM ancestry calling} % For use in the footer
+\runningauthor{Rodr\'iguez-Zapata \textit{et al.}}
+
+%%% Abstract — Bioinformatics structured form %%%%%%%%%%%%%%%%%%
+\begin{abstract}
+\noindent\textbf{Motivation:} Ancestry calls for near-isogenic lines (NILs) from
+low-cost sequencing normally require calibrating a caller against high-coverage
+truth samples, of which few are usually available. We ask whether the calibration
+can instead come from cheap simulations.\\
+\textbf{Results:} We present nilHMM, a unified duration-aware three-state
+(REF/HET/ALT) hidden Markov model whose emission is the only swappable axis,
+expressing four ancestry callers (nNIL, a Julia-free RTIGER port, a binned
+Gaussian caller, and ATLAS) through one engine. We show that the caller
+parameters --- rigidity, error rate, and emission means --- can be calibrated from
+Broman \texttt{simcross} simulations rather than from scarce high-coverage truth,
+and that the calibrated parameters transfer across skim WGS and 3\textquotesingle{}
+RNA-seq (BRB-seq) modalities on real BZea teosinte-introgression NILs.\\
+\textbf{Availability:} The \texttt{nilHMM} R package
+(\url{https://sawers-rellan-labs.github.io/nilhmm/}) and the \texttt{zealhmm}
+analysis repository (\url{https://sawers-rellan-labs.github.io/zealhmm/}) are
+openly available; simulated benchmark data are regenerated with pinned seeds.\\
+\textbf{Contact:} \href{mailto:thegemmalab@ncsu.edu}{thegemmalab@ncsu.edu}\\
+\textbf{Supplementary information:} Supplementary data are available at
+\textit{Bioinformatics} online.
+\end{abstract}
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\setboolean{displaycopyright}{true}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{firststyle}
+\correspondingauthoraffiliation{
+Department of Molecular and Structural Biochemistry, North Carolina State
+University, Raleigh, NC, USA. E-mail: corresponding@ncsu.edu}
+\vspace{-11pt}%
+
+\setboolean{displaylineno}{true}
+\ifthenelse{\boolean{displaylineno}}{\linenumbers}{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\lettrine[lines=2]{\color{color2}N}{}ear-isogenic lines (NILs) carry small donor
+introgressions on an otherwise recurrent-parent background, and mapping their
+ancestry from sequencing underpins introgression and QTL studies. In the BZea
+project, teosinte donor segments are introgressed into a B73 background and read
+out by several sequencing modalities of differing cost and depth.
+
+\todo[inline]{Motivate ancestry calling from cheap sequencing; the calibration
+bottleneck --- Holland's high-coverage-truth calibration vs. the few truth
+samples actually available (our target-seq analogue). State scope: DNA (skim WGS)
+and RNA (BRB-seq) modalities. Our contribution: a simulation-calibrated unified
+caller family.}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Materials and Methods}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\label{sec:materials:methods}
+
+\subsection{A unified duration-aware three-state HMM engine}
+One HMM over states REF/HET/ALT. Two axes are swappable and define each caller:
+the \emph{emission} (count/BetaBinomial vs.\ categorical genotype-confusion) and
+the \emph{duration/rigidity} layer (geometric, rigidity, or HSMM). Design
+start-priors come from the pedigree (BC2S2/BC2S3). The engine is data-agnostic:
+$(\text{data}, \text{params}) \rightarrow \text{calls}$.
+\todo{Fig F1: engine + caller-family schematic.}
+
+\subsection{The callers}
+\subsubsection{nNIL} Count/BetaBinomial emission with a geometric duration; the
+Holland near-isogenic-line caller \citex{Holland nNIL}.
+\subsubsection{RTIGER} A Julia-free port in which a rigidity layer replaces the
+free geometric duration \citex{RTIGER}.
+\subsubsection{binhmm} A three-state Gaussian emission on per-bin allele
+frequency with REF anchored at the coverage floor (dense skim only).
+\subsubsection{ATLAS} Competitive transcript-level alignment scores $\rightarrow$
+hard genotype $\rightarrow$ categorical emission; a GOOGA-shadow \citex{GOOGA},
+built for expression-driven RNA depth and allele-specific expression.
+
+\subsection{Data sources and marker sets}
+Skim (low-coverage WGS with teosinte--B73 wideseq filtering), BRB-seq
+(3\textquotesingle{} RNA-seq, wideseq-thinned), and MolBreeding target-seq (45K,
+high coverage; completeness only).
+
+\subsection{The \texttt{simcross} simulation model}
+Forward-simulated BC2S3 (and bulked BC2S2 for skim) NILs on the consensus
+genetic map with interference, degraded to each source's depth/error regime
+(coverage-driven missingness $\text{missing}(\lambda)=\pi+(1-\pi)e^{-k\lambda}$
+and per-read error).
+
+\subsection{Calibration and validation protocol}
+Fit rigidity $r$ by minimum KS distance to the simulated fragment-size
+distribution (not MLE), and $\text{err}$/emission means on degraded-simulation
+truth. Validate on held-out simulations: per-bin state accuracy, segment-boundary
+error, breakpoint count, donor-footprint ROC, and HET-vs-ALT calibration.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Results}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Simulation calibration}
+Fitted parameters per source $\times$ caller and calibration curves; why $r$ is a
+minimum-distance rather than a maximum-likelihood estimate. \todo{Fig F2.}
+
+\subsection{Simulation benchmark and caller ranking}
+Accuracy, boundary error, breakpoint count, donor-footprint ROC, and HET/ALT
+calibration on simulation truth. \todo{Fig F3.}
+
+\subsection{Application to the paired BRB + skim cohort}
+Transfer the simulation-calibrated parameters to the $\sim$400 NILs sequenced by
+both modalities; the paired design isolates method from sample. Cross-source and
+cross-caller concordance: pairwise segment agreement, donor-footprint Jaccard,
+breakpoint concordance, control cleanliness on B73. \todo{Fig F4.} Chromosome
+painting appears only as a supplementary QC illustration.
+
+\subsection{B1 anthocyanin mapping (deferred)}
+\todo[inline]{Included if the B1 phenotype table and NIL panel are ready in time;
+otherwise a future-application paragraph in the Discussion.}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Discussion}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\todo[inline]{Simulations can replace truth samples for calibration; limitations
+(zygosity identifiability ceiling, ASE for ATLAS, target-seq too sparse to
+calibrate from); which caller/source to use when.}
+
+%%%%% Bioinformatics back-matter %%%%%
+\section*{Conflicts of interest}
+None declared.
+
+\section*{Funding}
+\todo{Funding sources.}
+
+\section*{Data availability}
+The \texttt{nilHMM} package, the \texttt{zealhmm} analysis repository, and the
+simulated benchmark data (regenerated with pinned seeds) are openly available;
+see Availability.
+
+\section*{Author contributions}
+\todo{CRediT statement once the author list is finalized.}
+
+\section{Acknowledgments}
+\todo{Acknowledgments.}
+
+\bibliography{references}
+
+%\pagebreak
+\onecolumn
+\section*{Supplement}
+\beginsupplement
+\todo[inline]{Supplementary chromosome-painting sanity check (source $\times$
+caller tracks) and any supporting tables.}
+
+\end{document}
