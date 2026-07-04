@@ -186,7 +186,44 @@ peak-position error, LOD attenuation, and additive-effect sign concordance. STAM
 (five strongly, consistently signed QTL) gives a sharp recovery-vs-coverage
 threshold; the polygenic DTA (nineteen QTL) is the harder case, and both are
 cross-checked against the published joint-linkage QTL \citep{chen2019teonam}.
-\todo{Fig F5: QTL recovery vs coverage, per caller, for STAM and DTA.}
+
+As a first, sharp instance of this recovery test, the STAM coverage sweep
+(Figure~\ref{fig:stam-sweep}) contrasts the two duration-aware HMM callers with a
+deliberately heterozygous-prone no-HMM control --- a per-site
+genotype-likelihood caller under a Hardy--Weinberg prior, for which a single
+alternate read is already called heterozygous. Because ancestry is a long-block
+signal, both HMM callers reconstruct the STAM joint-linkage peaks essentially at
+their full-coverage height down to $0.1\times$: the \textit{tb1} peak holds near
+$-\log_{10}P\approx17$ across the whole sweep (nNIL never below $17.1$; RTIGER
+dips only to $16.1$ at $0.1\times$, from a $\lambda=\infty$ baseline of $17.3$),
+and the heterozygous-call fraction stays at the $\sim$8\% truth level. The no-HMM
+control, deciding each site independently, instead inflates heterozygous calls to
+$\sim$20\% at $\lambda\le1\times$ (het excess) and attenuates the \textit{tb1}
+peak to $-\log_{10}P\approx13.4$ at $0.1\times$. The duration/linkage prior, not
+the genotype likelihood, is what confers low-coverage robustness.
+\todo{Extend Fig F5 with the polygenic DTA panel and the remaining calibrated
+callers (binhmm, ATLAS); add the QTL-sensitivity / peak-error summary.}
+
+\begin{figure}[tb]
+\centering
+\includegraphics[width=\columnwidth]{figures/stam_sweep_composite.png}
+\caption{\textbf{STAM GWAS signal versus sequencing coverage on degraded TeoNAM
+genotypes.} Each panel is a line-Manhattan of $-\log_{10}P$ for the STAM
+(staminate spikelet) association scan along the B73 v5 genome, one line per
+coverage $\lambda\in\{0.1,0.2,0.5,1,5,10,20\}\times$ (viridis) plus the
+$\lambda=\infty$ interpolated-truth baseline (black); lines never connect across
+chromosomes. All three panels degrade the \emph{identical} real TeoNAM truth
+mosaics with the same read model and feed the same
+$\mathrm{STAM}\sim\mathrm{Family}+\mathrm{marker}$ scan --- only the genotype
+caller differs. \textbf{(A)} A no-HMM interpolation control (per-site
+genotype-likelihood caller with a Hardy--Weinberg prior; the het-excess control).
+\textbf{(B)}~nNIL and \textbf{(C)}~RTIGER, the duration-aware HMM callers. The HMM
+callers hold the joint-linkage peaks near baseline down to $0.1\times$, whereas
+the control shows heterozygous excess and greater peak attenuation at low
+coverage. Dotted line: $\mathrm{LOD}=5$. Compute:
+\texttt{zealhmm/scripts/teonam\_\{control,nnil,rtiger\}\_sweep.R}.}
+\label{fig:stam-sweep}
+\end{figure}
 
 \subsection{Application to the paired BRB + skim cohort}
 Transfer the simulation-calibrated parameters to the $\sim$400 NILs sequenced by
