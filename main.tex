@@ -58,7 +58,9 @@ Gaussian caller, and ATLAS) through one engine. We show that the caller
 parameters --- rigidity, error rate, and emission means --- can be calibrated from
 Broman \texttt{simcross} simulations rather than from scarce high-coverage truth,
 and that the calibrated parameters transfer across skim WGS and 3\textquotesingle{}
-RNA-seq (BRB-seq) modalities on real BZea teosinte-introgression NILs.\\
+RNA-seq (BRB-seq) modalities on real BZea teosinte-introgression NILs. As an
+external check, the calibrated callers recover published QTL from an independent
+public RIL panel (TeoNAM) after its real genotypes are degraded to low coverage.\\
 \textbf{Availability:} The \texttt{nilHMM} R package
 (\url{https://sawers-rellan-labs.github.io/nilhmm/}) and the \texttt{zealhmm}
 analysis repository (\url{https://sawers-rellan-labs.github.io/zealhmm/}) are
@@ -125,7 +127,10 @@ built for expression-driven RNA depth and allele-specific expression.
 \subsection{Data sources and marker sets}
 Skim (low-coverage WGS with teosinte--B73 wideseq filtering), BRB-seq
 (3\textquotesingle{} RNA-seq, wideseq-thinned), and MolBreeding target-seq (45K,
-high coverage; completeness only).
+high coverage; completeness only). For external validation we additionally use the
+public TeoNAM RIL panel \citep{chen2019teonam} --- an independent design (BC1S4
+recombinant inbreds, five teosinte parents $\times$ W22), dense genotypes at
+51{,}544 AGPv2 SNPs, 22 phenotyped traits, and published QTL.
 
 \subsection{The \texttt{simcross} simulation model}
 Forward-simulated BC2S3 (and bulked BC2S2 for skim) NILs on the consensus
@@ -134,10 +139,32 @@ genetic map with interference, degraded to each source's depth/error regime
 and per-read error).
 
 \subsection{Calibration and validation protocol}
-Fit rigidity $r$ by minimum KS distance to the simulated fragment-size
-distribution (not MLE), and $\text{err}$/emission means on degraded-simulation
-truth. Validate on held-out simulations: per-bin state accuracy, segment-boundary
-error, breakpoint count, donor-footprint ROC, and HET-vs-ALT calibration.
+Caller parameters are calibrated on \texttt{simcross} truth: segmentation rigidity
+by minimum distance to the simulated donor-fragment distribution (not MLE), and
+$\text{err}$/emission means on degraded-simulation truth. We then validate on two
+tiers. \emph{(i) Simulated truth} --- held-out simulations scored by per-bin state
+accuracy, segment-boundary error, breakpoint count, donor-footprint ROC, and
+HET-vs-ALT calibration. \emph{(ii) Empirical truth} --- an independent public RIL
+panel on which the calibrated pipeline must recover published QTL from
+low-coverage-degraded real genotypes (next subsection).
+
+\subsection{External validation on a public RIL panel (TeoNAM)}
+Beyond simulated truth, we test whether the calibrated pipeline preserves
+downstream mapping signal on \emph{real} genotypes. We treat the TeoNAM hardcall
+dosages (0/1/2 $=$ W22\,/\,heterozygous\,/\,teosinte) as truth, lift the AGPv2
+marker positions to B73 NAM v5 (v2$\rightarrow$v4$\rightarrow$v5 by chain-file
+liftover) and attach cM from the consensus map, then simulate low-coverage read
+counts from the true dosages with the same degradation model used for the
+\texttt{simcross} benchmark (coverage-driven missingness and per-read error). Each
+calibrated caller is run over a coverage sweep, and QTL are re-mapped on the
+recovered genotypes with the pipeline applied to the truth, isolating the effect
+of degradation and caller error. Recovery is scored for a strongly, consistently
+signed domestication trait (staminate spikelet, STAM; five QTL) and a polygenic
+agronomic trait (days to anthesis, DTA; nineteen QTL), against both the hardcall
+QTL and the published QTL \citep{chen2019teonam}. This is a real-genotype,
+simulated-read test --- it probes the genotype$\rightarrow$degrade$\rightarrow$
+call$\rightarrow$map chain under realistic recombination and trait architecture,
+not raw low-coverage resequencing.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Results}
@@ -149,6 +176,17 @@ minimum-distance rather than a maximum-likelihood estimate. \todo{Fig F2.}
 \subsection{Simulation benchmark and caller ranking}
 Accuracy, boundary error, breakpoint count, donor-footprint ROC, and HET/ALT
 calibration on simulation truth. \todo{Fig F3.}
+
+\subsection{QTL recovery on a public RIL panel (TeoNAM)}
+Whether the simulation-calibrated callers preserve downstream mapping signal on an
+independent real panel, as a function of coverage. QTL mapped from the callers'
+low-coverage-degraded genotypes are compared to those from the hardcall truth by
+QTL sensitivity (recovery within the support interval), false-positive QTL,
+peak-position error, LOD attenuation, and additive-effect sign concordance. STAM
+(five strongly, consistently signed QTL) gives a sharp recovery-vs-coverage
+threshold; the polygenic DTA (nineteen QTL) is the harder case, and both are
+cross-checked against the published joint-linkage QTL \citep{chen2019teonam}.
+\todo{Fig F5: QTL recovery vs coverage, per caller, for STAM and DTA.}
 
 \subsection{Application to the paired BRB + skim cohort}
 Transfer the simulation-calibrated parameters to the $\sim$400 NILs sequenced by
@@ -164,9 +202,12 @@ otherwise a future-application paragraph in the Discussion.}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Discussion}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\todo[inline]{Simulations can replace truth samples for calibration; limitations
-(zygosity identifiability ceiling, ASE for ATLAS, target-seq too sparse to
-calibrate from); which caller/source to use when.}
+\todo[inline]{Simulations can replace truth samples for calibration, and the
+calibrated callers generalize to an independent public RIL panel (TeoNAM QTL
+recovery); limitations (zygosity identifiability ceiling, ASE for ATLAS,
+target-seq too sparse to calibrate from; the TeoNAM check is real-genotype/
+simulated-read, not real low-coverage resequencing); which caller/source to use
+when.}
 
 %%%%% Bioinformatics back-matter %%%%%
 \section*{Conflicts of interest}
@@ -178,7 +219,8 @@ None declared.
 \section*{Data availability}
 The \texttt{nilHMM} package, the \texttt{zealhmm} analysis repository, and the
 simulated benchmark data (regenerated with pinned seeds) are openly available;
-see Availability.
+see Availability. The TeoNAM genotypes and phenotypes used for external validation
+are public \citep{chen2019teonam,tomura2025ensemble}.
 
 \section*{Author contributions}
 \todo{CRediT statement once the author list is finalized.}
