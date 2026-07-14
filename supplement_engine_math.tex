@@ -1,0 +1,1131 @@
+%% nilHMM methods paper — mathematical supplement.
+%% Comprehensive, connected derivation from the low-coverage foundations through
+%% the shared HMM engine to simcross calibration and GWAS-landscape geometry.
+%% Structure modeled on the RTIGER supplement (Campos-Martin et al. 2023):
+%% numbered Texts, full derivations, one narrative. Compiles standalone or is
+%% \input into main.tex's \section*{Supplement}.
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[round,authoryear]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{hyperref}
+\setlength{\emergencystretch}{3em}
+
+% ---- macros ----
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\argmin}{argmin}
+\newcommand{\REF}{\mathrm{REF}}
+\newcommand{\HET}{\mathrm{HET}}
+\newcommand{\ALT}{\mathrm{ALT}}
+\newcommand{\Oo}{\mathcal{O}}
+\newcommand{\Ss}{\mathcal{S}}
+\newcommand{\Sr}{S_r}
+\newcommand{\Pois}{\mathrm{Pois}}
+\newcommand{\BetaBin}{\mathrm{BetaBin}}
+\newcommand{\Mult}{\mathrm{Multinom}}
+\newcommand{\Bfun}{\mathrm{B}}                     % beta function
+\newcommand{\miss}{\mathrm{miss}}
+\newcommand{\cov}{\lambda}                          % per-marker coverage
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{Supplemental Texts\\[2pt]
+\large Simulation-calibrated HMM ancestry calling for near-isogenic lines\\
+across sequencing modalities (nilHMM)}
+\author{Rodr\'iguez-Zapata \textit{et al.}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\medskip
+\begin{description}
+\item[Text S1] Foundations --- the low-coverage regime and its missing-data model
+\item[Text S2] Foundations --- genotype calling under low coverage
+\item[Text S3] The unified duration-aware three-state HMM engine
+\item[Text S4] The caller family
+\item[Text S5] The \code{simcross} model and single-locus validation
+\item[Text S6] Two-stage simulation calibration
+\item[Text S7] GWAS-landscape geometry
+\item[Text S8] Rigid-HMM derivations (the RTIGER port)
+\item[Text S9] Pedigree-coupled ancestry calling
+\end{description}
+\clearpage
+
+%======================================================================
+\section{Foundations --- the low-coverage regime and its missing-data model}
+\label{sec:foundations-missing}
+%======================================================================
+% Motivation: the ZEAL/BZea population is genuinely low-coverage skim data; what
+% makes it tractable is that per-marker missingness obeys a clean
+% exponential-with-floor law in coverage. This section builds that law up from a
+% Poisson baseline, fits it to BZea BAMs, shows it holds across modalities, and
+% establishes the scale-invariance that lets us reuse it as the simcross
+% degradation model.
+
+The BZea/ZEAL population is genotyped by genome-skim sequencing: roughly
+$1{,}400$ near-isogenic lines sequenced to a nominal $0.8\times$ against the
+$2.2$\,Gb B73 NAM v5 reference with $150$\,bp reads (about $1.2\times10^{7}$
+reads per sample). At this depth most sites in most samples carry no read
+\citep{elshire_2011,nielsen_2011}, so whether ancestry can be called at all rests
+on \emph{how} missingness scales with coverage. This section derives that scaling law, fits it to the real BZea
+alignments, shows it is stable across sequencing modalities, and establishes the
+scale-invariance that later lets us reuse it as the \texttt{simcross} degradation
+model (Text~S5--S6).
+
+\subsection{The Poisson coverage baseline}
+\label{sec:poisson}
+
+If reads land independently and uniformly, the number of reads $x$ covering a
+given site is Poisson with mean $\cov$, the sequencing redundancy (mean coverage)
+--- the Lander--Waterman model of random read placement \citep{lander_waterman_1988,sims_2014} ---
+\begin{equation}
+P(x) = \frac{\cov^{x} e^{-\cov}}{x!},
+\qquad \cov = \frac{L N}{G},
+\label{eq:poisson}
+\end{equation}
+where $G$ is the genome length in bp, $L$ the read length, and $N$ the number of
+reads. A site is missing when $x=0$, so the baseline per-site missingness and the
+covered fraction are
+\begin{equation}
+P_{\miss}^{\mathrm{Pois}}(\cov) = e^{-\cov},
+\qquad
+P_{\mathrm{cov}}(\cov) = 1 - e^{-\cov}.
+\label{eq:poisson-missing}
+\end{equation}
+Equation~\eqref{eq:poisson-missing} is the random-sampling ideal: missingness
+decays to zero as coverage grows, limited only by shot noise. Real skim data does
+not behave this way --- a fraction of the genome stays uncallable at \emph{any}
+depth --- which motivates an irreducible floor.
+
+\subsection{Exponential-with-floor missingness, fit to BZea}
+\label{sec:floor}
+
+We model per-site missingness as a mixture of a coverage-driven Poisson term and a
+coverage-independent floor (a ``structural floor plus sampling'' two-component form
+shared with ecological occupancy--detection models, \citealp{mackenzie_2002}),
+\begin{equation}
+\boxed{\;\miss(\cov) \;=\; \pi \;+\; (1-\pi)\,e^{-k\cov}\;}
+\label{eq:floor}
+\end{equation}
+with two parameters: the \emph{floor} $\pi\in[0,1]$, the fraction of sites that
+stay uncalled even at high coverage (repetitive DNA, structural variants, and
+highly polymorphic regions where short reads fail to map or are filtered ---
+low mappability / the inaccessible genome, \citealp{li_maq_2008,derrien_2012,tgp_2015}),
+and the
+\emph{decay rate} $k>0$, which sets how fast the callable fraction fills in with
+coverage relative to the Poisson ideal ($k=1$ recovers
+Eq.~\eqref{eq:poisson-missing} up to the floor; the product $k\cov$ acts as an
+effective coverage over informative variants).
+
+We fit Eq.~\eqref{eq:floor} directly to the BZea \emph{Wideseq} BAM alignments
+\emph{before} genotype calling, to avoid confounding the missingness law with
+downstream VCF filters. Per-site, per-sample allele read counts
+(GATK \texttt{CollectAllelicCounts}) were taken at the ${\sim}27$ million known
+teosinte-vs-B73 variant sites and aggregated into $1$\,Mb bins; per sample,
+$\cov = \texttt{DEPTH\_SUM}/\texttt{VARIANT\_COUNT}$ and
+$\miss = 1 - \texttt{INFORMATIVE\_VARIANT\_COUNT}/\texttt{VARIANT\_COUNT}$. The
+realized mean coverage is $\cov\approx0.59$ (below the $0.8\times$ design goal),
+at which the observed missingness is $\approx0.67$ whereas the Poisson baseline
+predicts only $e^{-0.59}\approx0.554$ --- Poisson systematically under-predicts,
+as expected when read depth is over-dispersed by PCR and GC-content bias
+\citep{benjamini_speed_2012,ross_2013}.
+A nonlinear least-squares fit of Eq.~\eqref{eq:floor}
+(\texttt{nlsLM}, $\pi\in[0,1]$, $k\in[0,10]$) gives
+\begin{equation}
+\pi \approx 0.346,
+\qquad
+k \approx 1.256
+\label{eq:floor-fit-bzea}
+\end{equation}
+i.e.\ about one-third of sites are unmappable at any depth --- a floor expected to
+be large in maize, whose genome is ${\sim}85\%$ transposable-element and
+structurally variable sequence \citep{schnable_2009,gui_2022}. Fit quality is judged
+by concordance rather than a summary statistic: on an
+observed-vs-Poisson-expected plot the points lie systematically above the $1{:}1$
+line, whereas against the floor-model expectation they collapse onto it.
+\begin{figure}[t]
+\centering
+% TODO(export from missing-data-floor-model.qmd: final_plot_poisson + final_plot_floor)
+\caption{\textbf{Missingness in BZea Wideseq follows an exponential-with-floor
+law.} Observed per-bin missingness against the Poisson expectation
+$e^{-\cov}$ (left; points fall above the $1{:}1$ line --- Poisson under-predicts)
+and against the floor-model expectation $\pi+(1-\pi)e^{-k\cov}$ (right; points on
+the $1{:}1$ line), colored by coverage. Dashed vertical line: the fitted floor
+$\pi\approx0.346$.}
+\label{fig:floor-fit}
+\end{figure}
+
+\subsection{Missingness across modalities}
+\label{sec:model-comparison}
+
+The same law, fit to the same BZea samples viewed as three data products ---
+whole-genome (WGS, \texttt{picard CollectWgsMetrics}), Wideseq (the $27$M
+teosinte-variant panel), and the curated SNP50K panel --- gives a floor that
+falls monotonically with SNP ascertainment while the decay rate relaxes toward the
+Poisson value $k\to1$ as the panel is cleaned (Table~\ref{tab:modality}). That
+$\pi$ tracks mappability exactly as its mechanistic reading predicts --- filtering
+to informative, well-mapped sites removes irreducible missingness --- is evidence
+the floor model captures a real property of the data rather than a curve-fitting
+artifact.
+\begin{table}[t]
+\centering
+\begin{tabular}{l c}
+\toprule
+dataset (same BZea samples) & floor $\pi$ \\
+\midrule
+WGS --- whole genome (unfiltered)      & $0.446$ \\
+Wideseq --- $27$M teosinte variants    & $0.346$ \\
+SNP50K --- curated $50$K panel         & $0.161$ \\
+\bottomrule
+\end{tabular}
+\caption{Fitted floor $\pi$ across sequencing modalities. The floor decreases with
+ascertainment (WGS $>$ Wideseq $>$ SNP50K); the decay $k$ likewise relaxes toward
+the Poisson value $1$ as the panel is cleaned.}
+\label{tab:modality}
+\end{table}
+
+\subsection{Scale-invariance of $\miss(\cov)$}
+\label{sec:ergodicity}
+
+The degradation benchmark (Text~S5) applies the missingness law \emph{per $1$\,Mb
+bin}, but Eq.~\eqref{eq:floor-fit-bzea} was fit \emph{between samples}. This is
+licensed only if $\miss(\cov)$ is the same function whether $\cov$ varies because
+one picked a low-depth \emph{sample} or a low-mappability \emph{region} --- i.e.\
+if $\cov$ is a near-sufficient statistic for missingness. Fitting
+Eq.~\eqref{eq:floor} at both scales on real data confirms this
+(Table~\ref{tab:ergodicity}): the within-genome (per-bin) and between-sample
+curves nearly coincide ($\Delta\pi=0.033$, $\Delta k=0.080$), separating only in
+the high-coverage tail ($\cov>1\times$). An ergodic-by-construction simulation
+recovers the input parameters at both scales ($\Delta\pi\approx0$,
+$\Delta k\approx0.001$), confirming the machinery; the small real residual (a
+per-bin floor $0.313$ below the per-sample $0.346$) is the genuine spatial
+structure --- pericentromeric and repeat-rich bins are systematically
+low-mappability, so the genomic axis is not stationary and the transfer is
+approximate, not exact. Within a bin the ${\sim}10^{3}$--$10^{4}$ informative sites
+are exchangeable, and by the central limit theorem the bin statistic is governed
+by the mean per-site rate ($\approx\cov$) rather than the per-site coverage shape,
+which is what protects the transfer.
+\begin{table}[t]
+\centering
+\begin{tabular}{@{}l l r c c@{}}
+\toprule
+data & scale & $n$ & $\pi$ & $k$ \\
+\midrule
+real       & within-genome ($1$\,Mb bins) & $3{,}057{,}288$ & $0.313$ & $1.176$ \\
+real       & between-genome (samples)     & $1{,}434$       & $0.346$ & $1.256$ \\
+simulation & within-genome (bins)         & $212{,}900$     & $0.346$ & $1.255$ \\
+simulation & between-genome (samples)     & $100$           & $0.346$ & $1.256$ \\
+\bottomrule
+\end{tabular}
+\caption{Scale-invariance of the missingness law. Fitting
+Eq.~\eqref{eq:floor} within-genome (across $1$\,Mb bins) and between-genome
+(across samples) gives nearly the same $(\pi,k)$ on real data; the simulation is a
+control, ergodic by construction.}
+\label{tab:ergodicity}
+\end{table}
+
+The practical consequence is the transfer function used throughout the rest of the
+paper: because a single two-parameter law summarizes missingness as a function of
+coverage, and that law is stable across data products and scales, a clean genome
+can be \emph{analytically} degraded to any target coverage --- drawing a per-sample
+depth $\cov_s\sim\mathrm{Normal}(0.590,\,0.226)$ (the between-sample coverage
+distribution, favored over Gamma and lognormal by AIC) and applying the fitted
+$(\pi,k)$ per bin --- rather than resampling real reads. The floor model is that
+transfer function; the scale-invariance result is the license to apply it per bin
+(Text~S5--S6).
+
+%======================================================================
+\section{Foundations --- genotype calling under low coverage}
+\label{sec:foundations-calling}
+%======================================================================
+% Given the reads that survive, how is a call made, and why is low coverage hard?
+
+Missingness (Text~S1) decides \emph{whether} a site is observed; this section
+concerns the site once it is. The upshot is that at skim depth a single-marker
+genotype call carries almost no zygosity information, and worse, that the
+information ceiling is not lifted by adding reads or by a better prior --- which is
+precisely why ancestry must be inferred as a spatially-correlated latent state
+(Text~S3) rather than read off site by site.
+
+\subsection{Single-read genotype likelihoods}
+\label{sec:gl}
+
+At a biallelic site let the reference (B73) allele be $A$ ($0$) and the alternate
+(donor) allele $B$ ($1$), with genotypes $\{AA, AB, BB\}=\{0/0,0/1,1/1\}$ and a
+per-base error $\varepsilon = 10^{-Q/10}$. The genotype likelihood of the reads
+averages the two alleles of the diploid genotype with equal weight (the standard
+genotype-likelihood model of NGS SNP callers, \citealp{depristo_2011,nielsen_2011}),
+\begin{equation}
+P(\text{reads}\mid G=\{A_1,A_2\})
+= \prod_{i}\Big[\tfrac12 P(b_i\mid A_1) + \tfrac12 P(b_i\mid A_2)\Big],
+\qquad
+P(b\mid A)=
+\begin{cases}
+1-\varepsilon & b=A\\
+\varepsilon/3 & b\ne A .
+\end{cases}
+\label{eq:gl}
+\end{equation}
+The equal-weight averaging pins the heterozygote likelihood of any single read
+near $\tfrac12$, so one read carries at most a ${\sim}2{:}1$ likelihood ratio.
+For a single ALT read (at $\varepsilon=0.01$):
+\begin{center}
+\begin{tabular}{l c c c c}
+\toprule
+$G$ & $P(\text{read}\mid G)$ & value & Phred $-10\log_{10}L$ & normalized PL \\
+\midrule
+$AA$ & $\varepsilon/3$                               & $0.0033$ & $24.8$ & $25$ \\
+$AB$ & $\tfrac12\tfrac{\varepsilon}{3}+\tfrac12(1-\varepsilon)$ & $0.498$  & $3.0$  & $3$ \\
+$BB$ & $1-\varepsilon$                               & $0.99$   & $0.04$ & $0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+The genotype quality $\mathrm{GQ}=(\text{2nd-smallest PL})-(\text{smallest PL})=3$:
+one ALT read is a $2{:}1$ ($\approx 3$-PL) preference for donor-hom over het --- the
+entire information content of one read, identical across callers because
+Eq.~\eqref{eq:gl} is.
+
+\subsection{The prior decides the call, and accumulation only helps a shared state}
+\label{sec:prior}
+
+Every posterior caller multiplies the (caller-identical) likelihood by a
+genotype prior and reports the MAP genotype \citep{nielsen_2011,korneliussen_angsd_2014},
+\begin{equation}
+P(G\mid\text{reads}) \;\propto\;
+\underbrace{P(\text{reads}\mid G)}_{\text{GL --- identical across tools}}
+\;\times\;
+\underbrace{\pi(G)}_{\text{prior --- swappable}},
+\qquad
+\hat G=\argmax_G P(\text{reads}\mid G)\,\pi(G).
+\label{eq:posterior}
+\end{equation}
+Under a Hardy--Weinberg prior $\pi=\big((1-p)^2,\,2p(1-p),\,p^2\big)$ at the
+cohort's mean alternate-allele frequency $\bar p=0.0152$, the single-ALT-read
+posterior favors het over donor-hom by
+\begin{equation}
+\frac{P(AB\mid\text{read})}{P(BB\mid\text{read})}
+=\frac{p(1-p)}{(1-\varepsilon)\,p^{2}}
+=\frac{1-p}{(1-\varepsilon)\,p}\approx\frac{1}{p}\approx 66 .
+\label{eq:hwe-ratio}
+\end{equation}
+Because every panel site is rare ($p\ll\tfrac12$; no site has $p\ge0.1$), a lone
+ALT read is forced to het by a factor ${\sim}66$ --- the mechanical origin of the
+observed skim genotype matrix ($97\%$ REF-hom, $\sim3\%$ het, essentially $0\%$
+donor-hom; $448{,}805$ het vs.\ $355$ donor-hom calls at depth~1). Swapping the
+prior to the breeding-design frequencies (BC2S3: $f_{AA}=0.859$, $f_{AB}=0.0312$,
+$f_{BB}=0.1094$; the donor allele enters at frequency $0.125$) flips the \emph{same}
+read from het ($P=0.81$ under HWE) to donor-hom ($P=0.855$, $\approx 7{:}1$). The
+prior only relabels the tie: the data still speaks at $\approx 3$~PL, so \emph{one
+read cannot resolve het from hom under any prior}, and because
+Eq.~\eqref{eq:hwe-ratio} depends on $p$, the bias persists as depth grows until $p$
+approaches $\tfrac12$ --- it is not removed by adding reads.
+
+What accumulation \emph{can} help is a \emph{shared} latent state $S$ (the ancestry
+of a chromosomal stretch), whose posterior multiplies per-site emissions
+\begin{equation}
+P(S\mid\text{reads}_{1:n}) \;\propto\; \pi(S)\prod_{j=1}^{n}
+\underbrace{\Big[\textstyle\sum_{G} P(\text{reads}_j\mid G)\,P(G\mid S)\Big]}_{\text{emission}_j},
+\label{eq:accumulate}
+\end{equation}
+and for a biallelic site the count pair $(n_{\mathrm{ref}},n_{\mathrm{alt}})$ is a
+sufficient statistic of the per-site genotype likelihood --- so the count
+(BetaBinomial) emission of Text~S3 is a direct parameterization of
+Eq.~\eqref{eq:accumulate}, with overdispersion added for mapping/paralog noise.
+
+\subsection{Dosage non-identifiability of the SNP50K skim}
+\label{sec:identifiability}
+
+Two independent mechanisms make per-site zygosity unrecoverable at skim depth;
+neither is fixed by more reads or a better caller.
+
+\paragraph{Rare-allele prior.} As in Eq.~\eqref{eq:hwe-ratio}, with the cohort
+allele-frequency spectrum sitting entirely in the het branch
+($\bar p=0.0152$; $41.8\%$ of sites at $p<0.01$, none at $p\ge0.1$), the het:donor-hom
+posterior ratio $\approx 1/p\approx 66$ forces het regardless of which prior is
+used, and persists with depth.
+
+\paragraph{Outbred-donor dilution.} Teosinte donors are outbred and heterozygous,
+and the panel sites are \emph{common species variants}, not accession-fixed alleles.
+The gamete transmitted to the cross carries the donor ALT allele only with
+probability equal to the donor's ALT-allele frequency at panel sites,
+\begin{equation}
+d \;=\; 0\cdot f_0 + \tfrac12 f_1 + 1\cdot f_2 \;=\; f_2 + \tfrac12 f_1
+\;\approx\; 0.28\text{--}0.35,
+\label{eq:donor-dose}
+\end{equation}
+with $f_0\approx60\%$ of sites not segregating in a given donor (so the gamete looks
+like B73) and only about one site in three informative. This compresses the
+state-conditional expected ALT fraction from the textbook $\{0,\tfrac12,1\}$ to
+\begin{equation}
+\mathbb{E}[\text{alt frac}\mid\text{state}] \approx
+\{\,\varepsilon,\; \tfrac{d}{2},\; d\,\}
+\approx\{\,0,\; 0.15,\; 0.30\,\},
+\label{eq:compressed-means}
+\end{equation}
+so het and donor-hom sit at $\approx 0.15$ and $0.30$ --- a separation of only
+$\approx 0.15$, barely resolvable. Reads confirm the compression: $2\times$(het
+alt-fraction) should equal the donor-hom alt-fraction, but empirically donor-hom
+exceeds it (e.g.\ \emph{Z.\ mexicana} $0.49$ vs.\ $0.37$), because at $0.4\times$ the
+caller thresholds alt-fraction instead of resolving zygosity. Restoring
+$\{0,\tfrac12,1\}$ would require restricting to sites fixed for the ALT allele
+\emph{in that donor accession} ($f_2\to1$, $d\to1$), which needs the donor's own
+genotypes --- unavailable. The usable levers are therefore all upstream (donor-
+informative site selection, per-taxon fitted emission means, and the breeding
+prior in place of HWE), not in the emission model itself.
+
+\subsection{Emission by depth: counts vs.\ a hard call}
+\label{sec:emission-by-depth}
+
+Given that per-site zygosity is a \emph{data} limit, the remaining choice --- which
+emission family to attach to the fixed three-state model --- is dictated by depth,
+not preference (Table~\ref{tab:depth-regime}). The count (BetaBinomial) emission
+earns its keep only in the intermediate band: below it the signal is degenerate and
+no emission recovers information the reads do not contain; above it the count
+likelihood collapses to a near-delta and a categorical hard-genotype call carries
+the same information at lower cost (the BetaBinomial cost scales with the number of
+distinct $(n,k)$ count pairs, i.e.\ with depth, and is capped around $20\times$).
+Only the emission $p(\text{obs}\mid\text{state})$ swaps across regimes; the states
+and the duration layer (Text~S3) are unchanged.
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}l l l@{}}
+\toprule
+depth & regime & emission \\
+\midrule
+$\ll 1\times$ (skim, ${\sim}0.4\times$) & het invisible; data-limited & BetaBinomial counts (best available) \\
+${\sim}1$--$20\times$ (BRB-seq, ${\sim}2.8\times$) & depth-weighting informative & \textbf{BetaBinomial counts} \\
+$\gtrsim 20\times$ (target-seq / 45K) & saturated; likelihood $\to$ delta & categorical hard GT (equivalent, cheaper) \\
+\bottomrule
+\end{tabular}
+\caption{Depth selects the emission. The count model's depth-weighting does work a
+hard call cannot only in the intermediate band; at saturation the count model
+\emph{is} a hard genotype.}
+\label{tab:depth-regime}
+\end{table}
+
+%======================================================================
+\section{The unified duration-aware three-state HMM engine}
+\label{sec:engine}
+%======================================================================
+% Grounded in nilhmm/R/{engine,emissions,duration}.R. The compact version of this
+% is the main-text Methods; here is the full specification.
+
+Text~S2 established that ancestry is a spatially-correlated latent state that must
+be inferred, not read off per site, and that the emission is the one axis that
+should change with the data modality. The engine realizes exactly that: a single
+duration-aware three-state HMM in which the emission and the duration/transition
+prior are independent, swappable modules and everything else is shared. It is
+data-agnostic --- $(\text{data},\text{params})\rightarrow\text{calls}$ --- so a
+caller is nothing but a choice of (emission $\times$ duration $+$ priors)
+(Text~S4). This is the local-ancestry HMM lineage
+\citep{falush_2003,hapmix_2009,rfmix_2013,ancestryhmm_2017} specialized to a
+biparental NIL design and decoded by standard forward--backward/Viterbi machinery
+\citep{rabiner_1989}.
+
+\subsection{States, observations, and the generative NIL model}
+\label{sec:engine-model}
+
+The hidden state at marker $t$ is the local ancestry
+$s_t\in S=\{\REF,\HET,\ALT\}=\{0,1,2\}$ (recurrent-hom, heterozygous, donor-hom).
+The observation is either a read-count pair $o_t=(n_t,a_t)$ (total depth $n_t$,
+alternate/donor count $a_t$) or a hard genotype call $g_t\in\{0,1,2,\text{missing}\}$,
+depending on the emission (Text~S2.4). A NIL genome is a piecewise-constant ancestry
+track --- long donor blocks on a recurrent background --- so the modelling task is
+to segment the marker sequence into runs of constant $s$.
+
+\subsection{Emission axis}
+\label{sec:engine-emission}
+
+\paragraph{Count (BetaBinomial).} For read counts, the state-conditional emission is
+a BetaBinomial on the alternate count, a direct parameterization of the per-site
+genotype-likelihood sufficient statistic $(n_t,a_t)$ of Eq.~\eqref{eq:accumulate}
+with overdispersion for mapping/paralog noise (the emission of the RTIGER
+recombinant-genome genotyper, \citealp{rtiger_2023}),
+\begin{equation}
+\psi_s(o_t)=\BetaBin(a_t;\,n_t,\theta_s,\kappa)
+=\binom{n_t}{a_t}\,
+\frac{\Bfun\!\big(a_t+\kappa\theta_s,\;n_t-a_t+\kappa(1-\theta_s)\big)}{\Bfun\!\big(\kappa\theta_s,\;\kappa(1-\theta_s)\big)},
+\label{eq:betabin}
+\end{equation}
+where $\theta_s$ is the state's expected alt fraction and $\kappa$ the concentration
+(overdispersion; $\kappa\to\infty$ recovers the Binomial). Depth-zero markers
+($n_t=0$) emit a flat likelihood. The default means are the textbook
+$\theta=(\varepsilon,\,\tfrac12,\,1-\varepsilon)$, but under reference bias or the
+outbred-donor dilution of Eq.~\eqref{eq:compressed-means} the true means are
+compressed toward $\{0,\tfrac{d}{2},d\}$; the means are therefore optionally
+EM-fittable (Text~S3.5), which is required for RNA/BRB-seq and recommended whenever
+the donor-dose $d$ departs from $1$.
+
+\paragraph{Categorical (genotype confusion).} At saturated depth a hard call
+$g_t$ is sufficient (Text~S2.4), and the emission is a $3\times4$ categorical
+confusion matrix over $\{0,1,2,\text{missing}\}$ (Holland's nNIL genotype model),
+$\psi_s(g_t)=\Phi_{s,g_t}$, parameterized by the homozygote error $germ$, the
+heterozygote error $gert$, the fraction $p$ of homozygous errors miscalled as het,
+the missing rate $mr$, and the non-informative-marker rate $nir$; e.g.\ the
+recurrent-hom row is
+\begin{equation}
+\Phi_{\REF,\cdot}=\big((1-germ)(1-mr),\;p\,germ\,(1-mr),\;(1-p)\,germ\,(1-mr),\;mr\big),
+\label{eq:gtmat}
+\end{equation}
+with the het and donor-hom rows defined analogously (full matrix in the package
+source). Raising $germ$/$gert$ toward the platform error rate absorbs isolated
+miscalled markers as errors rather than opening spurious one-marker segments.
+
+\subsection{Duration / transition axis}
+\label{sec:engine-duration}
+
+\paragraph{Geometric (memoryless).} The default transition has a per-marker switch
+rate $r$: self-transitions $1-r$, and off-diagonal mass split between the two other
+states in proportion to their prior frequencies (Text~S3.4),
+\begin{equation}
+A=\begin{pmatrix}
+1-r & r\,\dfrac{f_1}{f_1+f_2} & r\,\dfrac{f_2}{f_1+f_2}\\[8pt]
+r\,\dfrac{f_0}{f_0+f_2} & 1-r & r\,\dfrac{f_2}{f_0+f_2}\\[8pt]
+r\,\dfrac{f_0}{f_0+f_1} & r\,\dfrac{f_1}{f_0+f_1} & 1-r
+\end{pmatrix},
+\qquad
+\pi=(f_0,f_1,f_2),
+\label{eq:transition}
+\end{equation}
+so the run-length in any state is geometric with mean $1/r$. The generation enters
+the transition \emph{only} through the priors $f_1,f_2$ --- never as a baked-in
+duration --- keeping the duration a genuine free axis.
+
+\paragraph{Rigidity (Erlang state-expansion).} To enforce a hard minimum run length
+$r$ (the RTIGER-style regularizer, \citealp{rtiger_2023,tiger_2015}), each
+macro-state $m$ is expanded into a chain of
+$r$ sub-states $S'=S\times\{1,\dots,r\}$: sub-states $1,\dots,r-1$ advance
+deterministically (forcing the minimum run), and the terminal sub-state $r$ is free
+--- it either self-loops to stay in $m$ (mass $A_{mm}$) or exits to sub-state $1$ of
+another macro-state $m'$ (mass $A_{mm'}$),
+\begin{equation}
+T'_{(m,k)(m',k')}=
+\begin{cases}
+1 & m'=m,\ k'=k+1,\ k<r \quad\text{(forced advance)}\\
+A_{mm} & m'=m,\ k=k'=r \quad\text{(free self-loop)}\\
+A_{mm'} & m'\ne m,\ k=r,\ k'=1 \quad\text{(free exit)}\\
+0 & \text{otherwise.}
+\end{cases}
+\label{eq:rigidity}
+\end{equation}
+All $r$ sub-states of a macro-state share its emission. This is a phase-type
+(Erlang) sojourn; $r=1$ collapses Eq.~\eqref{eq:rigidity} back to
+Eq.~\eqref{eq:transition}. It is a duration prior with a \emph{fixed}
+priors-derived transition --- distinct from the full rigid-HMM estimator of the
+RTIGER port (Text~S8), which additionally EM-learns $A$ and $\Psi$.
+
+\paragraph{Explicit-duration (HSMM).} A genuine explicit-sojourn layer is reserved
+but deliberately not used to bake in the design's fitted sojourn distribution, which
+would make the duration circular with the breeding design it is meant to test.
+
+\subsection{Design priors}
+\label{sec:engine-priors}
+
+The priors $(f_0,f_1,f_2)$ are the single-locus genotype frequencies of the
+breeding design, obtained by iterating the backcross and selfing transition
+matrices from the F$_1$ (Text~S5). They enter only through
+Eqs.~\eqref{eq:transition}--\eqref{eq:rigidity} (as the transition's off-diagonal
+weights and the start distribution $\pi$). For the two BZea designs,
+$(f_0,f_1,f_2)=(0.844,0.0625,0.0938)$ for BC2S2 and $(0.859,0.0312,0.1094)$ for
+BC2S3; both share the donor dosage $p=f_2+\tfrac12 f_1=0.125=2^{-(n_{bc}+1)}$,
+invariant across selfing.
+
+\subsection{Inference: Viterbi and EM for the emission means}
+\label{sec:engine-inference}
+
+Decoding returns the maximum-a-posteriori state path by Viterbi over
+Eqs.~\eqref{eq:betabin}/\eqref{eq:gtmat} and
+\eqref{eq:transition}/\eqref{eq:rigidity},
+$\hat s_{1:T}=\argmax_{s_{1:T}}\ \pi_{s_1}\prod_{t}A_{s_{t-1}s_t}\,\psi_{s_t}(o_t)$,
+with the rigidity sub-states mapped back to macro-states. When the emission means
+are fittable, they are estimated by Baum--Welch EM with the transition held fixed:
+the E-step computes the forward--backward posteriors $\gamma_s^t$, and the M-step is
+the posterior-weighted alt fraction
+\begin{equation}
+\theta_s \;=\; \frac{\sum_t \gamma_s^t\,a_t}{\sum_t \gamma_s^t\,n_t},
+\label{eq:em-means}
+\end{equation}
+pooled across a sample's chromosomes so the donor-state mean is estimated from all
+donor evidence. Equation~\eqref{eq:em-means} is exact for a Binomial and is the
+fixed-$\kappa$ mean update for the BetaBinomial; a state that is never visited keeps
+its current mean. Only the means are learned --- the run-length parameter $r$ is set
+by simulation calibration (Text~S6), not by likelihood, for the reasons given
+there.
+
+%======================================================================
+\section{The caller family}
+\label{sec:callers}
+%======================================================================
+
+The named callers are not separate programs but points in the engine's
+$(\text{emission}\times\text{duration}+\text{priors})$ space
+(Table~\ref{tab:callers}). Four ride the shared engine of Text~S3; two are faithful
+ports of external biparental imputers, carried as baselines; and one is a
+deliberately unsmoothed control. These biparental-population callers are the
+low-coverage analogues of the population-scale local-ancestry and haplotype-imputation
+HMMs \citep{falush_2003,hapmix_2009,rfmix_2013,ancestryhmm_2017,mosaic_2019,mach_2010,beagle_2007,stitch_2016,glimpse_2021},
+whose common premise --- that linkage structure reduces per-marker genotype
+uncertainty and thereby raises association power \citep{marchini_howie_2010} --- is
+the same one Text~S7 formalizes.
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}l l l l >{\raggedright\arraybackslash}p{4.6cm}@{}}
+\toprule
+caller & emission & duration & key param & role \\
+\midrule
+nNIL      & count / BetaBin      & geometric            & \texttt{rrate}      & count baseline; the self-transition \emph{is} the smoother \\
+RTIGER    & count / BetaBin      & rigidity             & \texttt{rigidity}   & min.\ run length; robust at low depth (Julia-free port) \\
+binhmm    & Gaussian / $1$\,Mb bins & sticky            & bin width           & pre-bin $\to$ 3-state Gaussian HMM; full SNP density (skim) \\
+ATLAS     & categorical GT       & geometric            & call thresholds     & competitive-alignment RNA reads $\to$ hard GT (BRB/ASE) \\
+\midrule
+LB-Impute & external             & linkage-decay dist.\ & \texttt{recombdist} & Fragoso \emph{et al.}\ biparental imputer (ported baseline) \\
+FSFHap    & external             & family-pooled EM     & \texttt{phet}       & TASSEL parent-call $+$ 5-state EM (ported baseline) \\
+control   & per-site GL, no HMM  & ---                  & ---                 & het-prone no-HMM baseline; the het-excess reference \\
+\bottomrule
+\end{tabular}
+\caption{The caller family as coordinates in the engine's two axes (top: shared
+engine) plus external ports and a control (bottom). RTIGER and TIGER
+\citep{rtiger_2023,tiger_2015}; LB-Impute \citep{lbimpute_2016}.}
+\label{tab:callers}
+\end{table}
+
+The four shared-engine callers differ only along the two axes of Text~S3. \textbf{nNIL}
+and \textbf{RTIGER} share the count emission and the same read-covered marker
+support, differing only in duration (geometric vs.\ rigidity); \textbf{ATLAS} swaps
+the emission to categorical because competitive-alignment RNA reads carry a hard
+call rather than an unbiased allele count (expression and allele-specific expression
+confound the count model); \textbf{binhmm} pre-bins to $\sim$1\,Mb before a 3-state
+Gaussian HMM, the only track that keeps the full marker density on skim data.
+\textbf{LB-Impute} and \textbf{FSFHap} are ported verbatim as external baselines ---
+each carries its own transition/imputation model (a distance-dependent
+recombination decay, and per-family EM haplotype imputation, respectively) but emits
+the common segment schema, so they are directly comparable. The \textbf{control} is
+the per-site genotype-likelihood MAP of Text~S2 with \emph{no} transition model; it
+isolates exactly what the duration prior buys, and (being het-prone at low coverage,
+Eq.~\eqref{eq:hwe-ratio}) is scored by its donor-called fraction on a known-recurrent
+control region --- the ``het-excess'' reference the HMM callers must beat.
+
+%======================================================================
+\section{The \texttt{simcross} model and single-locus validation}
+\label{sec:simcross}
+%======================================================================
+
+Calibration (Text~S6) needs a source of \emph{known} ancestry mosaics. We
+forward-simulate the breeding design with \texttt{simcross}: the BZea BC2S3 (and the
+bulked BC2S2 for skim) crossing scheme on the native B73 v5 consensus genetic map,
+with crossover interference (Stahl model, $m=10$, $p=0$), then degrade each true
+mosaic to a target modality by drawing read counts under the missingness law of
+Text~S1 (per-marker coverage with floor $\pi$ and decay $k$) plus the per-read error
+of Text~S2. Because the degradation reuses the empirically-fit $\miss(\cov)$ and its
+scale-invariance (Text~S1.4), the simulated cohorts carry a realistic
+coverage/missingness structure while their ancestry is exact truth.
+
+Before trusting any caller's recovery on this truth, we verify that the simulator
+itself is unbiased at the single-locus margin --- a circularity check on the truth
+generator. The expected genotype frequencies follow from iterating the backcross and
+selfing single-locus transition matrices from the F$_1$; for BC2S3,
+\begin{equation}
+\begin{aligned}
+(f_{\REF},f_{\HET},f_{\ALT}) &= (0.859375,\ 0.03125,\ 0.109375),\\
+\text{donor dosage } d &= f_{\ALT}+\tfrac12 f_{\HET} = 0.125 = 2^{-(n_{bc}+1)},
+\end{aligned}
+\label{eq:bc2s3-freqs}
+\end{equation}
+the dosage being invariant across selfing. We test whether the per-NIL genome
+fractions (segment-length-weighted, in Mb) reproduce Eq.~\eqref{eq:bc2s3-freqs} with
+a \emph{design-correct} statistic: a Hotelling $T^2$ on the $(\HET,\ALT)$ fractions
+with the \emph{between-sample} empirical covariance,
+\begin{equation}
+T^2 = N\,(\hat{\mathbf f}-\mathbf f_0)^{\!\top} S_2^{-1}\,(\hat{\mathbf f}-\mathbf f_0)
+\ \sim\ \chi^2_2,
+\qquad
+\mathrm{SE}(f_i)=\mathrm{sd}(f_i)/\sqrt{N},
+\label{eq:hotelling}
+\end{equation}
+where the sample --- not the marker --- is the unit of replication. A na\"ive
+per-marker binomial test would falsely reject a correct sampler, because linkage
+makes the markers within a NIL massively over-dispersed relative to independence; the
+effective information is only the $\sim\!33$ crossovers per genome, so the honest
+standard error is $\mathrm{sd}(f_i)/\sqrt{N}$ over NILs. The simulator \emph{passes}:
+all three state frequencies fall inside their $95\%$ Wald intervals and the donor
+dosage matches $0.125$, so the truth generator is unbiased where the breeding design
+makes a sharp prediction. The design-determined (non-Hardy--Weinberg) nature of this
+variance is the standard logic of controlled-cross mapping populations
+\citep{lander_botstein_1989,yu_2008,buckler_2009}, here for the TeoNAM-adjacent BZea
+material \citep{chen2019teonam}; the crossover count and the resulting tract
+structure follow the theory of junctions \citep{fisher_1954,stam_1980}.
+
+A separate marker-resolution sweep isolates a \emph{truth-measurement} floor distinct
+from caller error: measuring each NIL's fractions on progressively coarser marker
+grids, the heterozygous fraction is undercounted (Cohen's
+$d=(\bar f-f_0)/\mathrm{sd}(f)<0$) at wide spacing and relaxes into the negligibility
+band $|d|<0.05$ once the grid is denser than $\sim$0.5\,Mb --- the resolution at
+which segment endpoints, not the caller, limit accuracy.
+
+%======================================================================
+\section{Two-stage simulation calibration}
+\label{sec:calibration}
+%======================================================================
+
+Each caller carries one free segmentation parameter --- nNIL's \texttt{rrate},
+RTIGER's \texttt{rigidity}, LB-Impute's \texttt{recombdist} --- and we set it from the
+simulated truth of Text~S5 rather than by eye. The search is two-stage: a coarse
+log-spaced sweep brackets the optimum, then a golden-section refinement
+(ratio $(\sqrt5-1)/2$) on the continuous $\log_{10}$ parameter locates it, all from a
+single fit whose decodes are fanned across the grid. Calibration is done on
+simulated cohorts and the chosen value is scored on a \emph{held-out} truth set.
+
+The objective is a distributional match to the true donor-fragment structure, not a
+likelihood. A called donor block matches a truth block when they reciprocally overlap
+$\ge 50\%$ of each other's length; from the matched sets,
+\begin{equation}
+\begin{gathered}
+\text{recall}=\frac{\#\text{matched truth}}{\#\text{truth}},\qquad
+\text{precision}=\frac{\#\text{matched called}}{\#\text{called}},\\[2pt]
+\mathrm{Dice}=\frac{2\,\text{prec}\cdot\text{rec}}{\text{prec}+\text{rec}},\qquad
+\mathrm{FDR}=1-\text{precision},
+\end{gathered}
+\label{eq:dice}
+\end{equation}
+supplemented by the fragment-size Kolmogorov--Smirnov distance
+$D=\sup_x|F_{\text{called}}(x)-F_{\text{truth}}(x)|$ between the called and true
+donor-block-size distributions. Dice is maximized, $D$ and FDR minimized. The metric
+penalizes both missed donor and spurious one-marker blocks (which, spanning $0$\,bp,
+can never reach $50\%$ reciprocal overlap), unlike marker recall, which saturates and
+rewards over-fragmentation.
+
+Crucially, $\texttt{rrate}$ and $\texttt{rigidity}$ are chosen as
+\emph{minimum-distance} estimators, not maximum-likelihood estimates: we do not
+maximize a likelihood of the parameter but select the value whose \emph{called}
+fragment-size distribution best matches the simulated-truth distribution (smallest
+$D$, or highest Dice / lowest FDR). This matters because each parameter acts as a
+low-pass filter whose cutoff can be turned up without bound, so ``maximize
+smoothness/coherence'' is the wrong objective --- the smoothest caller is not the most
+accurate (Text~S7). One therefore compares callers each at its \emph{calibrated}
+cutoff,
+\begin{equation}
+\max_{\text{caller}}\ \rho\big(d;\ \lambda_{\text{calibrated}}\big)
+\qquad\text{not}\qquad
+\max_{\lambda}\ \rho(d;\lambda),
+\label{eq:calib-not-max}
+\end{equation}
+and the biologically-correct cutoff is fixed externally by the fragment scale: the
+recombination rate and crossing scheme set the tract-length distribution
+\citep{fisher_1954,gravel_2012,liang_nielsen_2014}, so the ideal filter passes
+wavelengths down to the shortest \emph{real} introgression fragment and rejects
+shorter ones as noise. That the optimum is intermediate --- under-smoothing makes
+false switches, over-smoothing erases true breakpoints --- is the bias--variance
+trade-off \citep{geman_1992}, and the residual attenuation from imperfect ancestry
+recovery is regression dilution \citep{frost_thompson_2000}. On the BZea BC2S2
+benchmark the refined values are $\texttt{rrate}^\star\approx1.1\times10^{-3}$ (nNIL)
+and $\texttt{rigidity}^\star=2$ (RTIGER); at those settings the held-out benchmark
+reaches marker-level Dice $\approx0.99$ and donor-fragment Dice $\approx0.97$ at
+$\mathrm{FDR}\approx0.01$. For the coverage sweep, each caller is recalibrated per
+coverage by minimum donor-fragment FDR, and RTIGER's rigidity is feasibility-capped
+so every chromosome retains more than $2r$ covered markers.
+
+%======================================================================
+\section{GWAS-landscape geometry}
+\label{sec:gwas-geometry}
+%======================================================================
+
+Calibration (Text~S6) asserts that a better ancestry reconstruction yields a cleaner
+association scan. This section makes that precise by reading a Manhattan plot as a
+noisy realization of a spatial stochastic process, whose second-order geometry can
+be used to score ancestry-inference quality. Each ingredient below is a
+domain-specific instance of an established result; the contribution is the synthesis
+into a falsifiable, three-axis caller diagnostic.
+
+\subsection{Manhattan height as information}
+\label{sec:noncentrality}
+
+The plotted height $S(x)=-\log_{10}P(x)$ is the self-information (surprisal)
+$-\log P$ of Shannon \citep{shannon_1948}, and for the association statistic
+$Z=\hat\beta/\mathrm{SE}(\hat\beta)$ (with $Z^2\sim\chi^2_1$ under the null) the tail
+gives $S(x)\approx Z^2/(2\ln 10)$. Its expectation under the alternative is the
+\emph{non-centrality parameter} of the test \citep{sham_purcell_2014}, in the
+mixed-model form used by plant and human GWAS \citep{yu_2006,zhou_stephens_2012},
+\begin{equation}
+\mathbb{E}[Z^2(x)] \;\propto\; N_{\text{eff}}(x)\,\frac{\mathrm{Var}\!\big(X(x)\big)\,\beta(x)^2}{\sigma^2},
+\label{eq:ncp}
+\end{equation}
+i.e.\ effective sample size $\times$ variance of the segregating predictor $\times$
+effect size $/$ residual variance. Peak height is thus information, and it scales
+with the \emph{variance of the predictor} $X$ --- which in a mapping population is not
+the Hardy--Weinberg value.
+
+\subsection{Breeding-design variance versus Hardy--Weinberg}
+\label{sec:designvar}
+
+$\mathrm{Var}(X)=2p(1-p)$ holds only under random mating; a crossing scheme
+correlates the within-individual alleles and inflates homozygosity, so the correct
+variance is the genotype-frequency variance $\mathbb{E}[A^2]-\mathbb{E}[A]^2$ over the
+design's realized frequencies \citep{lander_botstein_1989,yu_2008}. For the BC2S3
+dosage $A\in\{0,1,2\}$ with Eq.~\eqref{eq:bc2s3-freqs} ($p=0.125$),
+\begin{equation}
+\mathbb{E}[A]=0.25,\quad \mathbb{E}[A^2]=0.46875,\quad
+\mathrm{Var}(A)=0.40625 \approx 1.86\times \underbrace{2p(1-p)}_{0.21875},
+\label{eq:vara}
+\end{equation}
+and collapsing to a two-state (donor vs.\ recurrent) contrast gives
+$p_{\REF}p_{\ALT}=0.109$. The design nearly doubles the segregating variance relative
+to the HWE value one would naively insert into Eq.~\eqref{eq:ncp} --- a fixed,
+computable property of the pedigree, not of an allele-frequency equilibrium.
+
+\subsection{Ancestry as predictor; low coverage as measurement error}
+\label{sec:predictor}
+
+The causal chain is genotype$\rightarrow$phenotype; local ancestry $A(x)$ is a
+\emph{correlate} of genotype, so mapping on ancestry improves estimation of a
+genotype-derived predictor rather than asserting ancestry is causal --- the logic of
+admixture mapping \citep{mckeigue_1998,patterson_2004,winkler_2010}. The engine's
+output is the HMM posterior expectation $\hat X=\mathbb{E}[X\mid\text{data},A]$
+\citep{rabiner_1989,falush_2003}. Low coverage enters as measurement error on the
+predictor, $\tilde X = X+\epsilon$; the HMM reduces $\mathrm{Var}(\hat X - X)$ below
+$\mathrm{Var}(\tilde X - X)$, and the association effect is attenuated by the
+reliability ratio
+\begin{equation}
+\hat\beta = \beta\,\frac{\mathrm{Cov}(\hat G,G)}{\mathrm{Var}(\hat G)},
+\label{eq:attenuation}
+\end{equation}
+the classical regression-dilution correction \citep{frost_thompson_2000}, whose
+attenuation vanishes as $\hat G\to G$. This is the mechanism by which better
+imputation raises power \citep{marchini_howie_2010,mach_2010,beagle_2007,stitch_2016,glimpse_2021},
+and it is what distinguishes ``the peak cleaned up because the predictor improved''
+from ``the peak cleaned up because it was smoothed'' (Text~S7.7): attenuation acts on
+the \emph{covariance}, not on spatial roughness.
+
+\subsection{The peak as a spatial object}
+\label{sec:spatial}
+
+At a marker in incomplete LD ($r^2(d)$) with the causal variant, the statistic
+attenuates as $\mathbb{E}[Z^2(d)]\propto N\,\mathrm{Var}(X)\beta^2 r^2(d)/\sigma^2$
+--- the theory of indirect (tag-marker) association \citep{pritchard_2001} --- so a
+point causal effect is spread into a peak by the correlation kernel, the spatial
+statement of the interval-mapping LOD profile \citep{lander_botstein_1989}. A QTL
+therefore produces \emph{spatially autocorrelated} evidence: with
+$\rho(d)=\mathrm{cor}\big(S(x),S(x+d)\big)$ positive and decaying with distance ---
+spatial autocorrelation \citep{moran_1950,geary_1954} and Tobler's first law
+\citep{tobler_1970}. Summaries are the lag-one autocorrelation $\rho_1$ and the
+integrated $Q=\sum_k\rho(k)$. Because the autocovariance and the power spectrum are a
+Fourier-transform pair --- the Wiener--Khinchin theorem \citep{wiener_1930,khinchin_1934}
+--- high-frequency spectral energy and $\rho_1$ measure the same second-order
+structure and rank callers in reverse order; the band-limited power estimate follows
+standard spectral analysis \citep{percival_walden_1993} and the wavelet detail-energy
+measure of local roughness the multiresolution decomposition of \citet{mallat_1989}.
+
+\subsection{Correlation length equals the tract scale}
+\label{sec:tractscale}
+
+The correlation length of a \emph{mapping-population} scan is set by recent
+recombination --- the cross's own meioses --- not by historical population LD. LD as
+genotype correlation and its generation by finite-population recombinational history
+is \citet{hill_robertson_1968}; the per-meiosis decay $C(d)\approx(1-2r)$ and the
+segment-homozygosity relation is \citet{sved_1971}. Hence
+\begin{equation}
+L_{\text{signal}} \approx L_{\text{ancestry tract}},
+\label{eq:lengthscale}
+\end{equation}
+the GWAS-profile correlation length equals the inherited ancestry-tract scale, fixed
+by the theory of junctions and the admixture-tract-length distribution
+\citep{fisher_1954,stam_1980,gravel_2012,liang_nielsen_2014,pool_nielsen_2009}. The
+shortest \emph{real} introgression fragment is then a Nyquist-style resolution floor:
+the shortest wavelength a caller should preserve --- exactly the biological cutoff
+that Text~S6 calibrates toward.
+
+\subsection{The band-limited noise metric and caller ranking}
+\label{sec:noisiness}
+
+Operationally we score the roughness of each caller's $-\log_{10}P$ track within a
+noise band of wavelengths $(R,P_{10})$: $R$ is the median adjacent-marker spacing of
+the inference grid and $P_{10}$ the $10$th percentile of resolvable teosinte-tract
+lengths (on the 118K panel, $R\approx77$\,kb, $P_{10}\approx181$\,kb). Three
+equivalent lenses (Text~S7.4) are computed per chromosome: the FFT band-power
+fraction $\texttt{fft\_band}$, the Haar wavelet band-detail fraction
+$\texttt{wav\_band}$, and the lag-one autocorrelation $\texttt{acf\_lag1}$. As
+Wiener--Khinchin predicts, $\texttt{fft\_band}$ (ascending $=$ cleaner) and
+$\texttt{acf\_lag1}$ (descending $=$ more coherent) rank the callers in reverse order
+(Table~\ref{tab:noisiness}): the duration-aware HMMs \texttt{binhmm}/\texttt{rtiger}
+are least noisy and the no-HMM \texttt{control}/\texttt{nNIL} noisiest.
+\begin{table}[t]
+\centering
+\begin{tabular}{l c c c}
+\toprule
+caller & \texttt{fft\_band} & \texttt{wav\_band} & \texttt{acf\_lag1} \\
+\midrule
+binhmm   & $0.0004$ & $0.0008$ & $0.999$  \\
+rtiger   & $0.0006$ & $0.0012$ & $0.9988$ \\
+lbimpute & $0.0020$ & $0.0065$ & $0.9932$ \\
+control  & $0.0179$ & $0.0452$ & $0.9586$ \\
+nnil     & $0.0179$ & $0.0445$ & $0.9597$ \\
+\bottomrule
+\end{tabular}
+\caption{Spatial-coherence ranking of the STAM $-\log_{10}P$ track at
+$\lambda=\infty$ on the 118K panel. $\texttt{fft\_band}$/$\texttt{wav\_band}$
+(band-limited high-frequency energy, lower $=$ cleaner) and $\texttt{acf\_lag1}$
+(lag-one autocorrelation, higher $=$ more coherent) rank in reverse order, as
+Wiener--Khinchin requires.}
+\label{tab:noisiness}
+\end{table}
+
+\subsection{Recovery versus smoothing: the H1/H2 falsification}
+\label{sec:h1h2}
+
+A cleaner scan alone is ambiguous, because any strong low-pass filter inflates
+coherence (H1: model-imposed smoothing) --- the over-/under-fit optimum is the
+bias--variance trade-off \citep{geman_1992}. The alternative (H2: authentic mosaic
+recovery) predicts that reconstruction accuracy and mapping performance peak
+\emph{together} at the true ancestry-block scale. We separate them with a three-axis
+test over the caller parameter $\theta$: ancestry accuracy $E_A(\theta)=P(\hat A_\theta\ne A_{\text{true}})$,
+landscape coherence $\rho(\theta)$ (Text~S7.6), and mapping performance $M(\theta)$.
+H1 predicts $\argmax_\theta\rho(\theta)\ne\argmin_\theta E_A(\theta)$; H2 predicts
+$\argmin_\theta E_A(\theta)\approx\argmax_\theta M(\theta)$. The central,
+falsifiable claim tested by the coverage sweep is therefore: \emph{the caller
+parameters that best reconstruct the Mendelian ancestry mosaic produce the most
+accurate GWAS landscape} --- which is why calibration targets the fragment-scale
+minimum-distance fit (Text~S6), not maximal smoothness.
+
+%======================================================================
+\section{Rigid-HMM derivations (the RTIGER port)}
+\label{sec:rhmm}
+%======================================================================
+
+The \texttt{rtiger} caller is a Julia-free R/Rcpp port of the robust rigid-HMM (rHMM)
+of \citet{rtiger_2023}, which itself extends the TIGER genotyping-by-sequencing
+pipeline \citep{tiger_2015}. Unlike the fixed-transition Erlang duration layer of
+Text~S3.3 (which regularizes run length but does not learn the transition), the rHMM
+\emph{EM-fits} the transition $A$ and the emission $\Psi$ under a hard minimum-run
+constraint, and selects the rigidity $r$ by an analytic minimum-distance criterion.
+We reproduce the model and estimator in condensed form; the full proofs are in the
+supplement of \citet{rtiger_2023}.
+
+\subsection{The $r$-rigid HMM and its augmented-state equivalent}
+\label{sec:rhmm-model}
+
+A state path $\Ss=(s_1,\dots,s_T)$ is \emph{$r$-rigid} if every maximal run of
+identical states has length $\ge r$; let $\Sr$ be the set of such paths. The rHMM is
+a standard HMM restricted to $\Sr$,
+\begin{equation}
+P_{r\mathrm{HMM}}(\Oo,\Ss;\Theta_r):=P_{\mathrm{HMM}}(\Oo,\Ss\mid \Ss\in\Sr;\Theta)
+=\prod_{t=1}^{T}\psi_{s_t}(o_t)\ \prod_{t=1}^{T}P\!\big(s_t\mid s_{t-1},\Ss\in\Sr\big),
+\label{eq:rhmm}
+\end{equation}
+where the constrained transition is $a_{jk}$ once a run has reached length $r$ and is
+forced to stay ($\delta_{jk}$) otherwise. The $r$-th-order chain is made first-order
+by the same state expansion as Eq.~\eqref{eq:rigidity}: an augmented space
+$S'=S\times\{1,\dots,r\}$ in which $(s,j)$ records a run of length $j$ in state $s$,
+carrying a standard HMM $\Theta'_r$ with $P_{\mathrm{HMM}}(\Oo,\Ss;\Theta_r)=
+P_{\mathrm{HMM}}(\Oo,\Ss'\mid j_T=r;\Theta'_r)$. This reduces inference from the
+naive $|S|^r$ to $O(|S|^2 T)$.
+
+\subsection{Rigid forward--backward (E-step)}
+\label{sec:rhmm-estep}
+
+The recursions run on $\Theta'_r$ and reuse the windowed emission product
+\begin{equation}
+\Psi^{t}_k \;=\!\!\prod_{u=\max(t-r+1,1)}^{\min(t,T)}\!\!\psi_k(o_u),
+\label{eq:psiwindow}
+\end{equation}
+so that the terminal ($j=r$) forward mass telescopes,
+\begin{equation}
+\alpha'^{\,t}_{(v,r)}=\sum_{u\ne v}\alpha'^{\,t-r}_{(u,r)}\,a_{uv}\,\Psi^{t}_v
++\alpha'^{\,t-1}_{(v,r)}\,a_{vv}\,\psi_v(o_t),
+\label{eq:fwd}
+\end{equation}
+with the analogous backward recursion. Collapsing the augmented posteriors back to
+macro-states gives the per-marker $\gamma^t_k=P(s_t=k,\Oo)$ and the run-boundary
+transition counts $\zeta^t_{jk}$ needed for the M-step (full definitions in
+\citealp{rtiger_2023}).
+
+\subsection{M-step updates}
+\label{sec:rhmm-mstep}
+
+Maximizing the EM lower bound under the simplex constraints gives closed forms for
+the transition and initial distribution and a method-of-moments update for the
+BetaBinomial emission,
+\begin{equation}
+a_{jk}=\frac{\sum_t \zeta^t_{jk}}{\sum_{k'}\sum_t \zeta^t_{jk'}},
+\qquad
+\pi_j=\gamma^1_j,
+\qquad
+m_s=\frac{a_s}{a_s+b_s}=\frac{\sum_t k_t\,\gamma^t_s}{\sum_t n_t\,\gamma^t_s},
+\label{eq:mstep}
+\end{equation}
+where $(k_t,n_t)$ are the alternate and total counts and the emission's expected
+alt-fraction $m_s$ is the posterior-weighted allele ratio --- the same estimator as
+the engine's fixed-transition mean update Eq.~\eqref{eq:em-means}. The remaining
+concentration $\tau_s$ (so $a_s=m_s\tau_s$, $b_s=(1-m_s)\tau_s$) is set by a 1-D line
+search; multiple chains contribute additively to the pooled sufficient statistics.
+
+\subsection{Minimum-distance rigidity tuning}
+\label{sec:rhmm-rigidity}
+
+The rigidity $r$ is chosen not by likelihood but by controlling segmentation error.
+For a segment of length $u$ flanked by another state, the log-likelihood contrast
+between the true and a competing state, $\Delta_{u,x,y}$, is sampled by Monte Carlo
+under a Poisson-coverage emission $p_{k,n,z}=\Pois(n;c)\,\psi_z(k;n)$, giving the
+false-positive and false-negative segment rates
+\begin{equation}
+\mathrm{FPR}_{x\to y}(u;\Theta_r)=P\!\big(\Delta_{u,x,y}+C_{u,x,y}>0\big),
+\qquad
+\mathrm{FNR}_{x\leftarrow y}(u;\Theta_r)=P\!\big(\tilde\Delta_{m,x,y}\le 0\big),
+\label{eq:fprfnr}
+\end{equation}
+from which the expected numbers of false and missed segments per sample,
+$\mathrm{SE}_+(\Theta_r)$ and $\mathrm{SE}_-(\Theta_r)$, follow by a constrained
+optimization over segment-length compositions. The chosen $r$ minimizes the total
+expected segmentation error --- a \emph{minimum-distance} selection on the segment
+statistics, not an MLE of $r$. This is the analytic counterpart of the engine's
+empirical route (Text~S6): where \citet{rtiger_2023} predict the segment error from
+$\Theta_r$ and a coverage model, nilHMM's \texttt{calibrate\_r} measures the
+fragment-size distance directly against \texttt{simcross} truth
+(Eq.~\eqref{eq:dice}). Both estimate the run-length scale by matching the true
+segment geometry, consistent with the bias--variance and tract-length arguments of
+Text~S6--S7; neither treats $r$ as a likelihood-maximizing parameter.
+
+%======================================================================
+\section{Pedigree-coupled ancestry calling}
+\label{sec:pedigree}
+%======================================================================
+
+Every caller of Text~S3--S4 decodes each individual's chromosome independently. In
+a structured breeding population that leaves information on the table: siblings of a
+selfing family inherit overlapping donor blocks from a shared ancestor, so their
+genotypes are correlated through the pedigree, not just along the chromosome. The
+pedigree caller adds that missing coupling --- a \emph{third} structural axis beyond
+the emission and duration of Text~S3, namely inter-individual coupling through the
+known family tree. It is the family-pooled analogue of the single-chain callers (in
+the same spirit as the family-pooled FSFHap of Text~S4), and it reduces the
+predictor error of Text~S7.3 using Mendelian structure the single-chain callers
+ignore.
+
+\subsection{The pedigree $\times$ genome grid and its two couplings}
+\label{sec:ped-grid}
+
+Nodes are individuals (genotyped leaves and latent ungenotyped ancestors); the
+hidden state of node $v$ at marker $t$ is the donor dosage
+$s^v_t\in\{\REF,\HET,\ALT\}=\{0,1,2\}$ as before. Two factors couple the grid.
+
+\paragraph{Along the chromosome (per node).} A relax-to-stationary transition
+builds ancestry blocks while relaxing to a node-specific stationary $\pi$,
+\begin{equation}
+A_{xy} = (1-r_{\mathrm{eff}})\,\delta_{xy} + r_{\mathrm{eff}}\,\pi_y,
+\qquad
+r_{\mathrm{eff}} = \tfrac12\big(1-(1-2r_t)^{m_v}\big),
+\label{eq:ped-transition}
+\end{equation}
+where $r_t$ is the per-interval recombination fraction (Text~S3.4 / Haldane on the
+map, or $\texttt{rrate}\cdot\Delta\mathrm{bp}$) and $m_v$ is the number of meioses
+accumulated from the founder to node $v$; $r_{\mathrm{eff}}$ is the probability of
+an odd number of crossovers over those $m_v$ meioses and saturates correctly at
+$\tfrac12$. The stationary satisfies $\pi A=\pi$ for any $\pi$.
+
+\paragraph{Across the pedigree (parent $\to$ child).} A single selfing meiosis
+transmits dosage through the kernel
+\begin{equation}
+T^{\mathrm{sib}}=
+\begin{pmatrix}
+1 & 0 & 0\\
+\tfrac14 & \tfrac12 & \tfrac14\\
+0 & 0 & 1
+\end{pmatrix}
+\qquad (\text{row}=\text{parent dosage},\ \text{col}=\text{child}),
+\label{eq:tsib}
+\end{equation}
+so a homozygous locus stays fixed in all descendants and heterozygosity halves each
+selfing generation --- exactly the segregation the pedigree information rides on.
+
+\paragraph{Where the genotype-frequency prior enters.} Only at the founder. With the
+donor genome fraction $q=f_2+\tfrac12 f_1$ (Text~S3.4; selfing-invariant), the
+founder is heterozygous for all its donor content, giving the founder prior and
+chain stationary
+\begin{equation}
+\pi_0=\big(1-2q,\ 2q,\ 0\big)
+\qquad(\text{BC2}\Rightarrow(0.75,\,0.25,\,0)),
+\label{eq:founder-prior}
+\end{equation}
+while every non-root node takes a \emph{uniform} stationary and marker-0 prior. The
+deeper generation marginals $\pi_t\approx(0.859,0.031,0.109)$ are \emph{emergent},
+not injected: applying $T^{\mathrm{sib}}$ to $\pi_0$ yields $\pi_1,\pi_2,\dots$, so
+the transmission messages carry them downward. Re-injecting $\pi_t$ as each node's
+chain stationary would double-count the prior against the transmission message and
+over-suppress the conditionally-correct heterozygosity of a selfing child
+($(0.25,0.5,0.25)$ off a HET parent) toward the $3\%$ population marginal --- so the
+non-root chains are deliberately marginal-neutral.
+
+\subsection{Structured loopy belief propagation}
+\label{sec:ped-bp}
+
+The grid is loopy --- adjacent markers across a parent--child edge form a 4-cycle
+--- so exact inference is intractable and we use structured loopy belief propagation
+\citep{pearl_1988,kschischang_2001,yedidia_2005}. Each node's chromosome chain is
+solved \emph{exactly} by a tilted forward--backward \citep{rabiner_1989}: the
+effective per-marker likelihood is the node's emission times a \emph{tilt} equal to
+the product of all incoming pedigree messages,
+$\tilde\psi^v_t(x)=\psi^v_t(x)\prod_{u\in\mathcal N(v)}\mu_{u\to v}(t,x)$; latent
+ancestors set $\psi\equiv1$. The pedigree edges are the loopy part, passed by damped
+cavity messages. A message contracts $T^{\mathrm{sib}}$ over the sender's cavity
+belief (the belief with the recipient's own message divided out),
+\begin{equation}
+\mu_{v\to p}(t,x_p)\propto\sum_{x_v} T^{\mathrm{sib}}_{x_p x_v}\,\mathrm{cav}_{v\setminus p}(t,x_v),
+\qquad
+\mu_{p\to v}(t,x_v)\propto\sum_{x_p} T^{\mathrm{sib}}_{x_p x_v}\,\mathrm{cav}_{p\setminus v}(t,x_p),
+\label{eq:messages}
+\end{equation}
+(up = child$\to$parent, down = parent$\to$child), updated with a damped geometric
+step $\mu\leftarrow\mu^{\,1-\lambda}\,\mu_{\mathrm{new}}^{\,\lambda}$ ($\lambda\approx0.5$)
+over post-order-then-pre-order sweeps until the maximum message change falls below
+tolerance. Decoding is \emph{marginal-MAP}: the per-marker state is
+$\hat s^v_t=\argmax_x \gamma^v_t(x)$ of the converged posterior belief --- a
+posterior-marginal argmax, not the Viterbi joint path of the single-chain callers.
+
+\subsection{Emission and the two front doors}
+\label{sec:ped-emission}
+
+The emission is the same swappable axis as the rest of the engine (Text~S3.2),
+which is what lets one kernel serve both a de novo caller and a refinement:
+\begin{itemize}
+\item \textbf{Read counts} $\to$ the BetaBinomial \texttt{emission\_count}
+(Eq.~\eqref{eq:betabin}); a zero-coverage marker has $n_t=0$ and emits flat, so the
+pedigree fills it in weighted by how confident the relatives are. This is the
+depth-aware \emph{de novo} caller, \texttt{call\_ancestry(caller="pedigree")}.
+\item \textbf{Hard calls} (a per-marker \texttt{state}/$g$ column) $\to$ the
+categorical \texttt{emission\_gt} (Eq.~\eqref{eq:gtmat}); missing is the explicit
+$g=3$ column, again flat. This is the refinement path, wrapped as
+\texttt{refine\_ancestry()}.
+\end{itemize}
+In both channels ``no data'' collapses to a flat per-marker likelihood --- $n_t=0$
+under the count emission, the $g=3$ column under the categorical --- which is
+precisely what lets the pedigree and the chain supply the missing state (Text~S2.4).
+The hard-call channel discards per-marker depth (a call is a call, Text~S2), so the
+count channel is preferred whenever read counts are available; the categorical
+channel is for correcting an existing mosaic or a VCF of hard genotypes.
+
+\subsection{Complexity, approximations, and expected gains}
+\label{sec:ped-complexity}
+
+Each sweep costs $O(|V|\,M\,K^2)$ with $K=3$, so the fit is linear in both pedigree
+size and marker count and converges in a few damped sweeps; families are fully
+separable and embarrassingly parallel. Two approximations are stated honestly. First,
+using $T^{\mathrm{sib}}$ as a \emph{per-marker} factor drops \emph{transmission
+linkage} --- a heterozygous parent transmits a donor segment as a coherent block, not
+marker-by-marker, so the cross-sibling block-coherent depth pooling is discarded and
+only marker-by-marker marginal pooling survives (the phased copy-switch kernel is the
+fix, deferred). Second, the per-site cavity is exact at its own site but a message's
+influence propagated through the chain to neighboring sites is not removed, so a
+neighbor's evidence leaks around the 4-cycle; damping controls this in practice
+\citep{yedidia_2005}. Because the coupling reduces the ancestry-predictor error
+(Text~S7.3; regression-dilution attenuation, \citealp{frost_thompson_2000}) using the
+IBD block structure siblings share by descent \citep{fisher_1954,stam_1980}, the
+gains are largest exactly where the single-chain callers are weakest: at low
+coverage, near breakpoints, and for leaves with many genotyped siblings.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

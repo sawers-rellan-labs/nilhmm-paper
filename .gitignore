@@ -18,3 +18,6 @@ main.pdf
 
 # macOS
 .DS_Store
+
+# supplement build artifact
+supplement_engine_math.pdf
