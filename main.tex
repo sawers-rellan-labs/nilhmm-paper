@@ -1,7 +1,7 @@
-%% nilHMM methods paper — preprint.
-%% BASE: RILAB bioRxiv template (rilabRxiv.cls, genetics.bst) — the lab's
+%% nilHMM methods paper - preprint.
+%% BASE: RILAB bioRxiv template (rilabRxiv.cls, genetics.bst) - the lab's
 %% preprint styling/workflow.
-%% STRUCTURE: Oxford Bioinformatics — structured abstract (Motivation/Results/
+%% STRUCTURE: Oxford Bioinformatics - structured abstract (Motivation/Results/
 %% Availability/Contact), Intro / Materials & Methods / Results / Discussion,
 %% and OUP back-matter (Conflicts, Funding, Data availability, Author
 %% contributions). Reproduced in RILAB-compatible LaTeX; port to
@@ -41,7 +41,7 @@
 
 \affil[1]{Department of Molecular and Structural Biochemistry, North Carolina State University, Raleigh, NC, USA}
 \affil[2]{Genetics and Genomics Program, North Carolina State University, Raleigh, NC, USA}
-\affil[3]{Plant Science Research Unit, United States Department of Agriculture--Agricultural Research Service, Raleigh, NC 27695, USA}
+\affil[3]{Plant Science Research Unit, United States Department of Agriculture-Agricultural Research Service, Raleigh, NC 27695, USA}
 \affil[4]{Department of Crop and Soil Sciences and NC Plant Sciences Initiative, North Carolina State University, Raleigh, NC 27695, USA}
 
 \keywords{ancestry inference, hidden Markov model, near-isogenic lines, simulation calibration, low-coverage sequencing, RNA-seq}
@@ -49,15 +49,15 @@
 \runningtitle{Simulation-calibrated HMM ancestry calling} % For use in the footer
 \runningauthor{Rodr\'iguez-Zapata \textit{et al.}}
 
-%%% Abstract — Bioinformatics structured form %%%%%%%%%%%%%%%%%%
+%%% Abstract - Bioinformatics structured form %%%%%%%%%%%%%%%%%%
 \begin{abstract}
 \noindent\textbf{Motivation:} Ancestry calls for near-isogenic lines (NILs) from
 low-cost sequencing normally require calibrating a caller against high-coverage
 truth samples, of which few are usually available. We ask whether the calibration
 can instead come from cheap simulations.\\
 \textbf{Results:} We present nilHMM, a unified duration-aware three-state
-(REF/HET/ALT) hidden Markov model with two swappable axes --- the emission (read
-counts vs.\ a hard genotype call) and the duration (geometric vs.\ rigidity) ---
+(REF/HET/ALT) hidden Markov model with two swappable axes, the emission (read
+counts vs.\ a hard genotype call) and the duration (geometric vs.\ rigidity),
 that expresses a family of ancestry callers as coordinates in one engine: nNIL,
 bbNIL, RTIGER (a Julia-free port), and catiger, alongside a binned Gaussian caller
 (binhmm) and an RNA caller (ATLAS). We set each caller's segmentation parameter by a
@@ -68,7 +68,7 @@ coherence of the association landscape they produce, the duration-aware callers
 carrying ${\sim}9\times$ less high-frequency noise than a no-HMM baseline. On an
 independent public RIL panel (TeoNAM) degraded to low coverage and re-scanned under a
 mixed model, the duration-aware callers keep the association landscape clean where a
-no-HMM control does not --- the control admits a genome-wide forest of spurious peaks
+no-HMM control does not: the control admits a genome-wide forest of spurious peaks
 at low depth while the HMM callers stay localized. The engine further transfers across
 DNA (skim WGS) and RNA ($3'$ BRB-seq) modalities on real BZea teosinte-introgression
 NILs.\\
@@ -103,8 +103,8 @@ University, Raleigh, NC, USA. E-mail: rrellan@ncsu.edu}
 introgressions on an otherwise recurrent-parent background, and mapping their
 ancestry from sequencing underpins introgression and QTL studies. In the BZea
 project, teosinte donor segments are introgressed into a B73 background and read
-out by several sequencing modalities of differing cost and depth --- from
-low-coverage skim whole-genome sequencing to $3'$ RNA-seq --- so that the same lines
+out by several sequencing modalities of differing cost and depth (from
+low-coverage skim whole-genome sequencing to $3'$ RNA-seq), so that the same lines
 are genotyped cheaply but at depths where most sites carry no read and a single-marker
 call is nearly uninformative \citep{elshire_2011,nielsen_2011}. Recovering the donor
 mosaic from such data is a hidden-Markov segmentation problem: linkage makes ancestry a
@@ -113,7 +113,7 @@ tracts that no site resolves on its own.
 
 The practical obstacle is not the model but its calibration. An HMM ancestry caller has
 free segmentation parameters, and the established practice is to tune them against a
-handful of high-coverage truth samples --- the maize nested-NIL caller of Zhong
+handful of high-coverage truth samples: the maize nested-NIL caller of Zhong
 \emph{et al.}, for instance, optimized its HMM parameters on $24$ of $888$ lines
 re-genotyped on a SNP chip \citep{zhong2025}. Truth samples are exactly what
 low-cost projects have fewest of, and different assays (skim DNA, RNA-seq) need
@@ -122,9 +122,9 @@ whether the calibration can instead come from cheap forward simulations of the b
 design, whose ancestry is known exactly.
 
 We present nilHMM, a single duration-aware three-state (REF/HET/ALT) HMM whose emission
-and duration layers are independent, swappable modules; every named ancestry caller ---
+and duration layers are independent, swappable modules; every named ancestry caller,
 including faithful ports of RTIGER \citep{rtiger_2023} and Holland's nNIL
-\citep{zhong2025} --- is a coordinate in this two-axis engine. We show that the callers'
+\citep{zhong2025}, is a coordinate in this two-axis engine. We show that the callers'
 segmentation parameters can be calibrated from Broman \texttt{simcross} simulations
 rather than from scarce truth, that the calibrated callers preserve downstream QTL
 signal on an independent public RIL panel (TeoNAM) degraded to low coverage, and that
@@ -151,7 +151,7 @@ ancestry paint across data sources through this one engine (Figure~\ref{fig:pain
 Each named caller is a coordinate in the (emission $\times$ duration) grid
 (Figure~\ref{fig:engine}B); the four grid callers differ only along those two axes.
 \subsubsection{nNIL} Categorical genotype-confusion emission with a geometric
-duration --- Holland's original near-isogenic-line caller, on hard genotype calls
+duration: Holland's original near-isogenic-line caller, on hard genotype calls
 \citep{zhong2025}.
 \subsubsection{bbNIL} The same geometric duration with a count/BetaBinomial
 emission; the low-coverage extension of nNIL to read-count data, where the
@@ -159,32 +159,33 @@ self-transition is the smoother.
 \subsubsection{RTIGER} Count/BetaBinomial emission with a rigidity (hard
 minimum-run) duration in place of the free geometric one; a Julia-free port
 \citep{rtiger_2023}.
-\subsubsection{catiger} Categorical emission with the rigidity duration --- the
+\subsubsection{catiger} Categorical emission with the rigidity duration: the
 categorical$+$rigidity caller.
 \subsubsection{ATLAS} An RNA caller: because expression and allele-specific
 expression confound the competitive-alignment allele fraction (so the BetaBinomial
 cannot model it), ATLAS thresholds the competitive counts to hard genotype calls
-(GOOGA) and runs catiger --- a wrapper, GOOGA $+$ catiger \citep{flagel2019,veltsos2024}.
+(GOOGA) and runs catiger: a wrapper, GOOGA $+$ catiger \citep{flagel2019,veltsos2024}.
 \subsubsection{binhmm} A three-state Gaussian emission on per-bin allele frequency
 with REF anchored at the coverage floor (dense skim only); off the shared axes.
 \subsubsection{External baselines and control} Two established biparental imputers
-are ported verbatim as external baselines for calibration and benchmarking ---
+are ported verbatim as external baselines for calibration and benchmarking:
 LB-Impute \citep{lbimpute_2016}, which carries a distance-dependent recombination
 decay, and FSFHap (a TASSEL parent-call plus per-family EM haplotype imputer). A
-no-HMM \emph{control} --- the per-site genotype-likelihood MAP with no transition
-model --- isolates what the duration prior buys and, being heterozygous-prone at low
+no-HMM \emph{control}, the per-site genotype-likelihood MAP with no transition
+model, isolates what the duration prior buys and, being heterozygous-prone at low
 coverage, serves as the het-excess reference the HMM callers must beat.
 
 \subsection{Data sources and marker sets}
-Skim (low-coverage WGS with teosinte--B73 wideseq filtering), BRB-seq
+Skim (low-coverage WGS with teosinte-B73 wideseq filtering), BRB-seq
 (3\textquotesingle{} RNA-seq, wideseq-thinned), and MolBreeding target-seq (45K,
 high coverage; completeness only). For external validation we additionally use the
-public TeoNAM RIL panel \citep{chen2019teonam} --- an independent design (BC1S4
+public TeoNAM RIL panel \citep{chen2019teonam}: an independent design (BC1S4
 recombinant inbreds, five teosinte parents $\times$ W22), dense genotypes at
 51{,}544 AGPv2 SNPs, 22 phenotyped traits, and published QTL.
 
 \subsection{The \texttt{simcross} simulation model}
-Forward-simulated BC2S3 (and bulked BC2S2 for skim) NILs on the consensus
+Forward-simulated BC2S3 (and bulked BC2S2 for skim) NILs with Broman's
+\texttt{simcross} \citep{broman_simcross} on the consensus
 genetic map with interference, degraded to each source's depth/error regime
 (coverage-driven missingness $\text{missing}(\lambda)=\pi+(1-\pi)e^{-k\lambda}$
 and per-read error).
@@ -193,9 +194,9 @@ and per-read error).
 Caller parameters are calibrated on \texttt{simcross} truth: segmentation rigidity
 by minimum distance to the simulated donor-fragment distribution (not MLE), and
 $\text{err}$/emission means on degraded-simulation truth. We then validate on two
-tiers. \emph{(i) Simulated truth} --- held-out simulations scored by per-bin state
+tiers. \emph{(i) Simulated truth}: held-out simulations scored by per-bin state
 accuracy, segment-boundary error, breakpoint count, donor-footprint ROC, and
-HET-vs-ALT calibration. \emph{(ii) Empirical truth} --- an independent public RIL
+HET-vs-ALT calibration. \emph{(ii) Empirical truth}: an independent public RIL
 panel on which the calibrated pipeline must recover published QTL from
 low-coverage-degraded real genotypes (next subsection).
 
@@ -210,7 +211,7 @@ counts from the true dosages with the same degradation model used for the
 calibrated caller is run over a coverage sweep, and QTL are re-mapped on the
 recovered genotypes with the pipeline applied to the truth, isolating the effect
 of degradation and caller error. Recovery is read on the authentic
-$118{,}838$-SNP Chen panel under the published mixed model --- a family fixed
+$118{,}838$-SNP Chen panel under the published mixed model: a family fixed
 effect plus a VanRaden kinship random effect (the Family$+$K analog of Chen's
 Fig.~4C model). The kinship term deflates genomic inflation
 ($\lambda_{\mathrm{GC}}$ from $2.6$ to $1.1$) but, because teosinte ancestry is
@@ -220,7 +221,7 @@ than on peak power. The sweep is carried by a strongly, consistently signed
 domestication trait (staminate spikelet, STAM; five QTL); a second, polygenic
 flowering trait (days to anthesis, DTA) is a cross-trait check against the
 published joint-linkage QTL \citep{chen2019teonam}. This is a real-genotype,
-simulated-read test --- it probes the genotype$\rightarrow$degrade$\rightarrow$
+simulated-read test: it probes the genotype$\rightarrow$degrade$\rightarrow$
 call$\rightarrow$map chain under realistic recombination and trait architecture,
 not raw low-coverage resequencing.
 \clearpage
@@ -251,8 +252,8 @@ the no-HMM control sit off the shared axes.}
 \includegraphics[width=\textwidth]{figures/nilhmm_sanity_check_paint.png}
 \caption{\textbf{Comparison of nilHMM chromosome painting of selected samples.}
 Ancestry paint (REF gold, HET green, ALT purple) along the ten B73 v5 chromosomes for
-the vary-skim cohort --- a B73 control plus ten BZea NILs spanning the skim coverage
-range (row label: mean skim $\lambda$ and pedigree) --- with six tracks per line: the
+the vary-skim cohort, a B73 control plus ten BZea NILs spanning the skim coverage
+range (row label: mean skim $\lambda$ and pedigree), with six tracks per line: the
 same lines called through the nilHMM engine from two data sources (skim WGS, BRB-seq)
 crossed with the callers (binhmm, bbNIL, RTIGER, ATLAS). The B73 control paints
 essentially all-REF across every track, and the source$\times$caller tracks agree on the
@@ -273,16 +274,16 @@ single-locus breeding-scheme genotype frequencies of the design: for the BC2S2 s
 cohort the simulated $(\mathrm{REF},\mathrm{HET},\mathrm{ALT})$ fractions
 $(0.841,0.063,0.096)$ match the Mendelian expectation $(0.844,0.063,0.094)$ and the
 donor dosage is $0.127$ against the invariant $0.125$; for BC2S3 a Hotelling $T^2$ on
-the (HET, ALT) genome fractions --- with the sample, not the marker, as the unit of
-replication --- does not reject the design expectation ($T^2=0.47$, $p=0.79$), all
+the (HET, ALT) genome fractions (with the sample, not the marker, as the unit of
+replication) does not reject the design expectation ($T^2=0.47$, $p=0.79$), all
 three state frequencies falling inside their $95\%$ intervals. A companion
 marker-resolution sweep shows the only measurement bias is a slight HET undercount at
 coarse marker spacing that becomes negligible ($|d|<0.05$) below ${\sim}0.5$\,Mb, well
 inside the working grid.
 
 Each caller's single segmentation hyperparameter is then set by a two-stage search on
-this truth --- a coarse log-spaced sweep to bracket the optimum, then a golden-section
-refinement --- maximizing the donor-fragment Dice against the known mosaic
+this truth (a coarse log-spaced sweep to bracket the optimum, then a golden-section
+refinement), maximizing the donor-fragment Dice against the known mosaic
 (Figure~\ref{fig:calib}). The refined optima are $\texttt{rrate}^\star=1.1\times10^{-3}$
 (bbNIL), $\texttt{rigidity}^\star=2$ markers (RTIGER), and
 $\texttt{recombdist}^\star=5.5$\,cM (LB-Impute). The objective is a minimum-distance
@@ -293,8 +294,8 @@ over-fragmentation, whereas donor-fragment Dice peaks and then collapses as the 
 is turned up (bbNIL $0.97\rightarrow0.21$ with the breakpoint count exploding from
 ${\sim}6{,}200$ to ${\sim}34{,}000$ against ${\sim}6{,}900$ true breakpoints; RTIGER
 $0.97\rightarrow0.76$ from rigidity $2$ to $128$). The intermediate optimum is the
-bias--variance trade-off at the biological fragment scale, which is why the
-calibrated cutoff --- not maximal smoothness --- is the setting at which callers are
+bias-variance trade-off at the biological fragment scale, which is why the
+calibrated cutoff, not maximal smoothness, is the setting at which callers are
 compared.
 
 \begin{figure}[tb]
@@ -305,7 +306,7 @@ Two-stage search for bbNIL (\texttt{rrate}) and RTIGER (\texttt{rigidity}) on
 \texttt{simcross} BC2S2 truth: donor-fragment Dice (top) and false-discovery rate
 (bottom) over the coarse log-sweep (line), with the golden-section refinement probes
 and the refined optimum (dashed). Dice peaks at an intermediate cutoff and collapses
-under over-smoothing, whereas marker recall (not shown) saturates throughout ---
+under over-smoothing, whereas marker recall (not shown) saturates throughout,
 motivating the minimum-distance, not maximum-likelihood, objective. Compute:
 \texttt{analysis/simulation-calibration.qmd}.}
 \label{fig:calib}
@@ -331,12 +332,12 @@ $P_{10}\approx181$\,kb) and the lag-one autocorrelation of each caller's scan
 (Table~\ref{tab:ranking}). The duration-aware HMMs are an order of magnitude cleaner
 than the no-HMM baselines: binhmm and RTIGER carry ${\sim}0.0005$ of their power in
 the noise band ($\mathrm{acf}_1\approx0.999$) versus ${\sim}0.018$ for the control and
-bbNIL ($\mathrm{acf}_1\approx0.96$) --- a ${\sim}9\times$ difference, with the two
+bbNIL ($\mathrm{acf}_1\approx0.96$), a ${\sim}9\times$ difference, with the two
 spectral lenses ranking the callers in exactly reverse order as the
-Wiener--Khinchin duality requires. Crucially the smoothest caller is not blindly
+Wiener-Khinchin duality requires. Crucially the smoothest caller is not blindly
 preferred: because each caller is scored at its fragment-scale calibrated cutoff (not
 at maximal smoothness), coherence tracks reconstruction accuracy rather than
-substituting for it --- the recovery-versus-smoothing distinction the coverage sweep
+substituting for it: the recovery-versus-smoothing distinction the coverage sweep
 tests next.
 
 \begin{table}[tb]
@@ -358,7 +359,7 @@ Fraction of $-\log_{10}P$ spectral power in the sub-tract noise band ($R$ to
 $P_{10}$; lower is cleaner) and lag-one autocorrelation (higher is more coherent) at
 full coverage on the 118K TeoNAM panel. The duration-aware HMMs run ${\sim}9\times$
 cleaner than the no-HMM control and the geometric-only bbNIL; the two lenses rank the
-callers in reverse order (Wiener--Khinchin).}
+callers in reverse order (Wiener-Khinchin).}
 \label{tab:ranking}
 \end{table}
 
@@ -370,7 +371,7 @@ re-scan STAM on the authentic $118{,}838$-SNP Chen panel under the published mix
 model (Family$+$K), comparing against the same scan on the truth
 (Figure~\ref{fig:stam-sweep}). Because the kinship term absorbs the ancestry-collinear
 domestication QTL (Methods), every caller loses most of the \textit{tb1} peak height,
-so the panels no longer separate on QTL power --- they separate on how much spurious,
+so the panels no longer separate on QTL power: they separate on how much spurious,
 genome-wide signal each caller admits, a direct readout of the recovered-ancestry
 geometry.
 
@@ -379,9 +380,9 @@ associations across all ten chromosomes, dozens clearing $\mathrm{LOD}=5$ (to
 $-\log_{10}P\approx16$), worst at the intermediate coverages where the
 genotype-likelihood scatter is largest and the mixed model has no coherent block
 structure to correct. The duration-aware HMM callers instead keep the scan clean and
-localized across the entire sweep: RTIGER (C) and binhmm (E) are the cleanest --- little
-survives threshold beyond a modest \textit{tb1} cluster (chr1) and the chr3
-domestication region --- with bbNIL (B) intermediate and LB-Impute (D) close to RTIGER.
+localized across the entire sweep: RTIGER (C) and binhmm (E) are the cleanest, with
+little surviving threshold beyond a modest \textit{tb1} cluster (chr1) and the chr3
+domestication region; bbNIL (B) is intermediate and LB-Impute (D) close to RTIGER.
 This is the same ordering as the band-limited noise metric (Table~\ref{tab:ranking}):
 the duration-aware callers carry ${\sim}9\times$ less high-frequency power than the
 no-HMM control and geometric-only bbNIL, and the two spectral lenses rank them in
@@ -403,7 +404,7 @@ authentic $118{,}838$-SNP Chen panel under the published mixed model (Family$+$K
 line per coverage $\lambda\in\{0.1,0.2,0.5,1,5,10,20\}\times$ (viridis) plus each
 caller's $\lambda=\infty$ ceiling (black); lines never connect across chromosomes. All
 five panels degrade the \emph{identical} real TeoNAM truth genotypes with the same read
-model and feed the same Family$+$K scan --- only the genotype caller differs.
+model and feed the same Family$+$K scan: only the genotype caller differs.
 (Panel key continued next page.)}
 \label{fig:stam-sweep}
 \end{figure}
@@ -411,7 +412,7 @@ model and feed the same Family$+$K scan --- only the genotype caller differs.
 \begin{figure}[t!]
 \ContinuedFloat
 \caption{\textbf{(A)} no-HMM interpolation control (per-site genotype-likelihood,
-Hardy--Weinberg prior); \textbf{(B)}~bbNIL, \textbf{(C)}~RTIGER, \textbf{(D)}~LB-Impute,
+Hardy-Weinberg prior); \textbf{(B)}~bbNIL, \textbf{(C)}~RTIGER, \textbf{(D)}~LB-Impute,
 \textbf{(E)}~binhmm. Because the kinship term absorbs the ancestry-collinear
 domestication QTL, the panels are read for genome-wide false-positive control, not peak
 power: the control admits a dense spurious-peak forest (worst at intermediate coverage)
@@ -430,7 +431,7 @@ HMM and the RTIGER port agree closely (marker concordance $0.905$), and among sk
 callers RTIGER and the binned Gaussian caller agree most tightly ($0.945$), so the
 skim donor footprint is essentially caller-independent. Across modalities skim-RTIGER
 and BRB-RTIGER concord at $0.827$ over the whole cohort, and per-NIL donor Jaccard
-reaches $0.79$ where the pedigrees genuinely correspond --- the two assays recover the
+reaches $0.79$ where the pedigrees genuinely correspond: the two assays recover the
 same teosinte-introgression landscape (Figure~\ref{fig:brbskim}).
 
 The one caller that does \emph{not} transfer unchanged to BRB-seq is the count HMM
@@ -468,22 +469,22 @@ Skim mean $0.43\times$, BRB-seq mean $2.8\times$. Compute:
 Cheap simulations can stand in for the scarce high-coverage truth samples that
 ancestry callers are normally calibrated against. Setting each caller's segmentation
 parameter by a minimum-distance match to the \texttt{simcross} donor-fragment
-distribution --- rather than by maximizing a likelihood or a smoothness score --- gives
+distribution, rather than by maximizing a likelihood or a smoothness score, gives
 values that reconstruct held-out simulated truth to ${\approx}0.99$ marker-Dice and,
 more importantly, carry over to an \emph{independent} real panel: on TeoNAM degraded
 across coverage and re-scanned under the published mixed model, the duration-aware
 callers keep the association landscape clean and localized down to $0.1\times$, whereas
-the no-HMM control admits a genome-wide forest of spurious peaks --- the same
+the no-HMM control admits a genome-wide forest of spurious peaks: the same
 false-positive ordering the band-limited noise metric predicts. That the parameters
 chosen on simulation carry over to real genotypes, and that the fragment-scale
-calibration --- not maximal smoothing --- is what tracks landscape cleanliness, together
+calibration, not maximal smoothing, is what tracks landscape cleanliness, together
 support the central claim that simulation calibration is a sufficient substitute for
 truth-sample calibration.
 
 The approach has real limits. Per-site zygosity is not recoverable at skim depth for
-fundamental reasons --- a rare-allele prior forces lone alternate reads to
-heterozygous, and outbred-donor dilution compresses the state-conditional alt-fractions
---- so the callers infer \emph{tracts}, not site genotypes, and no emission model lifts
+fundamental reasons: a rare-allele prior forces lone alternate reads to
+heterozygous, and outbred-donor dilution compresses the state-conditional alt-fractions,
+so the callers infer \emph{tracts}, not site genotypes, and no emission model lifts
 that ceiling. The RNA route (ATLAS/count HMM on BRB-seq) needs EM-fitted emission means
 because expression scaling and reference bias move the donor-homozygous alt-fraction off
 its textbook value; fixed means mis-call it, as the paired-cohort comparison shows.
@@ -507,7 +508,7 @@ the trait panels are assembled.
 None declared.
 
 \section*{Funding}
-This work was supported by the USDA--ARS as part of CERCA --- Circular Economy that
+This work was supported by the USDA-ARS as part of CERCA, Circular Economy that
 Reimagines Corn Agriculture (8062-21000-052-000-D).
 
 \section*{Data availability}
@@ -517,11 +518,13 @@ see Availability. The TeoNAM genotypes and phenotypes used for external validati
 are public \citep{chen2019teonam,tomura2025ensemble}.
 
 \section*{Author contributions}
+\textbf{Fausto Rodr\'iguez-Zapata:} Conceptualization, Methodology, Software, Formal
+analysis, Visualization, Writing (original draft).
 \textbf{Nirwan Tandukar:} Data curation, Investigation.
-\textbf{James B. Holland:} Methodology, Conceptualization, Writing --- review \&
-editing.
-\todo{Complete the CRediT statement for the remaining authors once the list is
-finalized.}
+\textbf{James B. Holland:} Methodology, Conceptualization, Writing (review \&
+editing).
+\textbf{Rub\'en Rell\'an-\'Alvarez:} Conceptualization, Supervision, Funding
+acquisition, Writing (review \& editing).
 
 \section{Acknowledgments}
 We thank Qiuyue Chen for sharing the TeoNAM genotype and phenotype data.
