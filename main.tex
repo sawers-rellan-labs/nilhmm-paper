@@ -36,7 +36,6 @@
 
 \author[$\ast$]{Fausto Rodr\'iguez-Zapata}
 \author[$\ast$,3]{Nirwan Tandukar}
-\author[$\ast$]{Author list to be finalized}
 \author[1,2]{James B. Holland}
 \author[$\ast$]{Rub\'en Rell\'an-\'Alvarez}
 
@@ -67,16 +66,17 @@ than to scarce high-coverage truth, and show the calibrated callers reconstruct
 held-out simulated mosaics to ${\approx}0.99$ Dice and rank cleanly by the spatial
 coherence of the association landscape they produce, the duration-aware callers
 carrying ${\sim}9\times$ less high-frequency noise than a no-HMM baseline. On an
-independent public RIL panel (TeoNAM) degraded to low coverage, the calibrated callers
-preserve downstream mapping signal where the no-HMM control fails: the staminate-
-spikelet joint-linkage peaks hold to $0.1\times$ coverage, whereas the control loses
-them to heterozygous excess. The engine further transfers across DNA (skim WGS) and
-RNA ($3'$ BRB-seq) modalities on real BZea teosinte-introgression NILs.\\
+independent public RIL panel (TeoNAM) degraded to low coverage and re-scanned under a
+mixed model, the duration-aware callers keep the association landscape clean where a
+no-HMM control does not --- the control admits a genome-wide forest of spurious peaks
+at low depth while the HMM callers stay localized. The engine further transfers across
+DNA (skim WGS) and RNA ($3'$ BRB-seq) modalities on real BZea teosinte-introgression
+NILs.\\
 \textbf{Availability:} The \texttt{nilHMM} R package
 (\url{https://sawers-rellan-labs.github.io/nilhmm/}) and the \texttt{zealhmm}
 analysis repository (\url{https://sawers-rellan-labs.github.io/zealhmm/}) are
 openly available; simulated benchmark data are regenerated with pinned seeds.\\
-\textbf{Contact:} \href{mailto:thegemmalab@ncsu.edu}{thegemmalab@ncsu.edu}\\
+\textbf{Contact:} \href{mailto:rrellan@ncsu.edu}{rrellan@ncsu.edu}\\
 \textbf{Supplementary information:} Supplementary data are available at
 \textit{Bioinformatics} online.
 \end{abstract}
@@ -90,7 +90,7 @@ openly available; simulated benchmark data are regenerated with pinned seeds.\\
 \thispagestyle{firststyle}
 \correspondingauthoraffiliation{
 Department of Molecular and Structural Biochemistry, North Carolina State
-University, Raleigh, NC, USA. E-mail: corresponding@ncsu.edu}
+University, Raleigh, NC, USA. E-mail: rrellan@ncsu.edu}
 \vspace{-11pt}%
 
 \setboolean{displaylineno}{true}
@@ -120,6 +120,45 @@ low-cost projects have fewest of, and different assays (skim DNA, RNA-seq) need
 different settings, so the calibration bottleneck recurs with every modality. We ask
 whether the calibration can instead come from cheap forward simulations of the breeding
 design, whose ancestry is known exactly.
+\clearpage
+
+\begin{figure*}[ht!]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_engine.png}
+\caption{\textbf{One engine; every caller has a coordinate in it.}
+\textbf{A} The shared duration-aware three-state HMM. Hidden ancestry
+$s_t\in\{\mathrm{REF},\mathrm{HET},\mathrm{ALT}\}$ evolves along the marker sequence
+with self-transition $1-r$ and transition matrix $A$, emitting the observation $o_t$
+(read counts $(n_t,a_t)$ or a hard call $g_t$) through the state-conditional emission
+$\psi_s$. The two module boxes are the engine's independent, swappable axes: the
+\emph{duration} axis (geometric self-transition, or the rigidity Erlang
+state-expansion with minimum run length $\ell$) and the \emph{emission} axis
+(BetaBinomial on read counts, or a categorical genotype-confusion), chosen by data
+modality. \textbf{B} The named callers as coordinates in the (emission $\times$
+duration) grid: \textbf{nNIL} and \textbf{RTIGER} on the published main diagonal, and
+bbNIL and catiger on the anti-diagonal (this work's extensions). \textbf{ATLAS} wraps
+GOOGA competitive-mapping (allele-specific-expression) thresholding around catiger for
+RNA ancestry; binhmm, the pedigree caller, the external ports (LB-Impute, FSFHap), and
+the no-HMM control sit off the shared axes.}
+\label{fig:engine}
+\end{figure*}
+
+\begin{figure*}[t!]
+\centering
+\includegraphics[width=\textwidth]{figures/nilhmm_sanity_check_paint.png}
+\caption{\textbf{Comparison of nilHMM chromosome painting of selected samples.}
+Ancestry paint (REF gold, HET green, ALT purple) along the ten B73 v5 chromosomes for
+the vary-skim cohort --- a B73 control plus ten BZea NILs spanning the skim coverage
+range (row label: mean skim $\lambda$ and pedigree) --- with six tracks per line: the
+same lines called through the nilHMM engine from two data sources (skim WGS, BRB-seq)
+crossed with the callers (binhmm, bbNIL, RTIGER, ATLAS). The B73 control paints
+essentially all-REF across every track, and the source$\times$caller tracks agree on the
+donor-introgression landscape of each NIL, confirming that the named callers are
+configurations of one shared engine rather than independent programs. Compute:
+\texttt{zealhmm/analysis/nilhmm\_sanity\_check\_paint.qmd}.}
+\label{fig:paint}
+\end{figure*}
+\clearpage
 
 We present nilHMM, a single duration-aware three-state (REF/HET/ALT) HMM whose emission
 and duration layers are independent, swappable modules; every named ancestry caller ---
@@ -142,28 +181,10 @@ genotype-confusion) and the \emph{duration/rigidity} layer (geometric, rigidity,
 HSMM). Design start-priors come from the pedigree (BC2S2/BC2S3). The engine is
 data-agnostic: $(\text{data}, \text{params}) \rightarrow \text{calls}$. Every named
 caller is a coordinate in this (emission $\times$ duration) space
-(Figure~\ref{fig:engine}B).
+(Figure~\ref{fig:engine}B), and on real BZea NILs the callers produce concordant
+ancestry paint across data sources through this one engine (Figure~\ref{fig:paint}).
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_engine.png}
-\caption{\textbf{One engine; every caller has a coordinate in it.}
-\textbf{A} The shared duration-aware three-state HMM. Hidden ancestry
-$s_t\in\{\mathrm{REF},\mathrm{HET},\mathrm{ALT}\}$ evolves along the marker sequence
-with self-transition $1-r$ and transition matrix $A$, emitting the observation $o_t$
-(read counts $(n_t,a_t)$ or a hard call $g_t$) through the state-conditional emission
-$\psi_s$. The two module boxes are the engine's independent, swappable axes: the
-\emph{duration} axis (geometric self-transition, or the rigidity Erlang
-state-expansion with minimum run length $\ell$) and the \emph{emission} axis
-(BetaBinomial on read counts, or a categorical genotype-confusion), chosen by data
-modality. \textbf{B} The named callers as coordinates in the (emission $\times$
-duration) grid: \textbf{nNIL} and \textbf{RTIGER} on the published main diagonal, and
-bbNIL and catiger on the anti-diagonal (this work's extensions). \textbf{ATLAS} wraps
-GOOGA competitive-mapping (allele-specific-expression) thresholding around catiger for
-RNA ancestry; binhmm, the pedigree caller, the external ports (LB-Impute, FSFHap), and
-the no-HMM control sit off the shared axes.}
-\label{fig:engine}
-\end{figure*}
+
 
 \subsection{The callers}
 Each named caller is a coordinate in the (emission $\times$ duration) grid
@@ -227,15 +248,17 @@ counts from the true dosages with the same degradation model used for the
 \texttt{simcross} benchmark (coverage-driven missingness and per-read error). Each
 calibrated caller is run over a coverage sweep, and QTL are re-mapped on the
 recovered genotypes with the pipeline applied to the truth, isolating the effect
-of degradation and caller error. The coverage-recovery sweep is carried by a
-strongly, consistently signed domestication trait (staminate spikelet, STAM; five
-QTL); a second, polygenic flowering trait (days to anthesis, DTA) is used as a
-cross-trait reproduction check against the published joint-linkage QTL
-\citep{chen2019teonam}. All scans use a per-marker across-family model
-($\mathrm{trait}\sim\mathrm{Family}+\mathrm{marker}$); the mixed-model variant
-(Family$+$kinship) is not used here because in this teosinte-introgression material
-the kinship term is collinear with the domestication QTL themselves. This is a
-real-genotype,
+of degradation and caller error. Recovery is read on the authentic
+$118{,}838$-SNP Chen panel under the published mixed model --- a family fixed
+effect plus a VanRaden kinship random effect (the Family$+$K analog of Chen's
+Fig.~4C model). The kinship term deflates genomic inflation
+($\lambda_{\mathrm{GC}}$ from $2.6$ to $1.1$) but, because teosinte ancestry is
+collinear with the domestication QTL, it also absorbs the ancestry-confounded
+peaks; callers are therefore compared on genome-wide false-positive control rather
+than on peak power. The sweep is carried by a strongly, consistently signed
+domestication trait (staminate spikelet, STAM; five QTL); a second, polygenic
+flowering trait (days to anthesis, DTA) is a cross-trait check against the
+published joint-linkage QTL \citep{chen2019teonam}. This is a real-genotype,
 simulated-read test --- it probes the genotype$\rightarrow$degrade$\rightarrow$
 call$\rightarrow$map chain under realistic recombination and trait architecture,
 not raw low-coverage resequencing.
@@ -340,66 +363,62 @@ callers in reverse order (Wiener--Khinchin).}
 \end{table}
 
 \subsection{QTL recovery on a public RIL panel (TeoNAM)}
-The decisive test is whether the simulation-calibrated callers preserve downstream
-mapping signal on an independent \emph{real} panel as coverage falls. We degrade the
+The decisive test is whether the simulation-calibrated callers preserve a clean
+association scan on an independent \emph{real} panel as coverage falls. We degrade the
 real TeoNAM truth genotypes across the sweep, re-call ancestry with each caller, and
-re-map QTL, comparing to the same scan run on the truth. Because the domestication
-trait STAM is carried by five strongly, consistently signed QTL, it gives a sharp
-recovery-versus-coverage read; we run it on both the native $51{,}004$-marker map
-panel (where truth is the interpolated ancestry mosaic and every caller shares a
-single $\lambda=\infty$ baseline) and the authentic $118{,}838$-SNP Chen panel (where
-truth is the per-SNP genotype, so each caller has its own full-coverage ceiling and
-peak height is not monotone in coverage --- moderate depth can look cleaner than
-perfect depth).
+re-scan STAM on the authentic $118{,}838$-SNP Chen panel under the published mixed
+model (Family$+$K), comparing against the same scan on the truth
+(Figure~\ref{fig:stam-sweep}). Because the kinship term absorbs the ancestry-collinear
+domestication QTL (Methods), every caller loses most of the \textit{tb1} peak height,
+so the panels no longer separate on QTL power --- they separate on how much spurious,
+genome-wide signal each caller admits, a direct readout of the recovered-ancestry
+geometry.
 
-On the native panel (Figure~\ref{fig:stam-sweep}) the duration-aware HMM callers
-reconstruct the STAM joint-linkage peaks essentially at full-coverage height down to
-$0.1\times$: the \textit{tb1} peak holds near $-\log_{10}P\approx17$ across the whole
-sweep (bbNIL $17.6$, RTIGER $16.5$, LB-Impute $16.3$ at $0.1\times$, from a common
-$\lambda=\infty$ baseline of $17.3$) and all five STAM QTL clear $\mathrm{LOD}=5$ at
-every coverage, while the heterozygous-call fraction stays at the ${\sim}8\%$ truth
-level. The no-HMM control, deciding each site independently, instead inflates
-heterozygous calls to ${\sim}20\%$ at $\lambda\le1\times$ and attenuates the
-\textit{tb1} peak to $-\log_{10}P\approx13.3$ at $0.1\times$. On the authentic 118K
-panel the same picture holds and RTIGER is the standout --- its \textit{tb1} signal is
-essentially flat (${\approx}16.6$ at every coverage) and its scan carries ${\sim}9\times$
-less noise-band power than the no-HMM callers (Table~\ref{tab:ranking}) --- confirming
-that the duration/linkage prior, not the genotype likelihood, confers the low-coverage
-robustness.
+The no-HMM control (panel A) fails this test: it produces a dense forest of spurious
+associations across all ten chromosomes, dozens clearing $\mathrm{LOD}=5$ (to
+$-\log_{10}P\approx16$), worst at the intermediate coverages where the
+genotype-likelihood scatter is largest and the mixed model has no coherent block
+structure to correct. The duration-aware HMM callers instead keep the scan clean and
+localized across the entire sweep: RTIGER (C) and binhmm (E) are the cleanest --- little
+survives threshold beyond a modest \textit{tb1} cluster (chr1) and the chr3
+domestication region --- with bbNIL (B) intermediate and LB-Impute (D) close to RTIGER.
+This is the same ordering as the band-limited noise metric (Table~\ref{tab:ranking}):
+the duration-aware callers carry ${\sim}9\times$ less high-frequency power than the
+no-HMM control and geometric-only bbNIL, and the two spectral lenses rank them in
+reverse. The one residual HMM artifact is a broad chr3-pericentromeric elevation at
+$0.1\times$ (strongest for the count callers), where poor kinship estimation and block
+recovery in a low-recombination region let structure leak through at the shallowest
+depth. A polygenic second trait (DTA) reproduces the pattern: the mixed model likewise
+removes the ancestry-collinear flowering peaks (\textit{ZmCCT10}, \textit{ZCN8}) and the
+callers separate on the identical cleanliness ranking (RTIGER${\,\approx\,}$binhmm
+cleanest, bbNIL noisiest), so the false-positive-control result is not specific to STAM.
 
-The recovery is not free of caller-specific artifacts, and the framework exposes them.
-At $0.1\times$ a spurious peak appears in the chr3 pericentromere (no candidate gene
-there), largest for LB-Impute ($-\log_{10}P\approx12.4$, ${\approx}3.9$ above local
-baseline), where its calibrated $\texttt{recombdist}$ interacts with the compressed
-pericentromeric cM scale. It is a genuine structure artifact rather than a QTL: a
-mixed-model kinship control collapses it below significance ($12.4\rightarrow4.7$)
-while leaving the true peaks, and a leave-one-chromosome-out control resurfaces it ---
-the expected signature of background relatedness, not linkage. As a cross-trait check,
-the same OLS pipeline on the recovered genotypes reproduces the major published
-flowering QTL for the polygenic trait DTA --- \textit{ZmCCT10} (chr10) and
-\textit{ZCN8} (chr8) dominate the truth scan ($-\log_{10}P\approx49$ and $24$) and
-survive degradation --- confirming recovery is not specific to the domestication
-architecture.
-
-\begin{figure}[tb]
+\begin{figure}[tbp]
 \centering
-\includegraphics[width=\columnwidth]{figures/stam_sweep_composite.png}
-\caption{\textbf{STAM GWAS signal versus sequencing coverage on degraded TeoNAM
-genotypes.} Each panel is a line-Manhattan of $-\log_{10}P$ for the STAM
-(staminate spikelet) association scan along the B73 v5 genome (native $51$K map
-panel), one line per coverage $\lambda\in\{0.1,0.2,0.5,1,5,10,20\}\times$ (viridis)
-plus the $\lambda=\infty$ interpolated-truth baseline (black); lines never connect
-across chromosomes. All four panels degrade the \emph{identical} real TeoNAM truth
-mosaics with the same read model and feed the same
-$\mathrm{STAM}\sim\mathrm{Family}+\mathrm{marker}$ scan --- only the genotype caller
-differs. \textbf{(A)} A no-HMM interpolation control (per-site genotype-likelihood
-caller with a Hardy--Weinberg prior; the het-excess control); \textbf{(B)}~bbNIL,
-\textbf{(C)}~RTIGER, and \textbf{(D)}~LB-Impute, the duration/distance-aware callers.
-The HMM callers hold the joint-linkage peaks near baseline down to $0.1\times$,
-whereas the control shows heterozygous excess and greater peak attenuation at low
-coverage. Dotted line: $\mathrm{LOD}=5$. Compute:
-\texttt{zealhmm/analysis/teonam-qtl-recovery.qmd}.}
+\includegraphics[width=\columnwidth]{figures/stam_sweep_composite_mlm_118k.png}
+\caption{\textbf{STAM association scan versus sequencing coverage on degraded TeoNAM
+genotypes (authentic 118K panel, mixed model).} Each panel is a line-Manhattan of
+$-\log_{10}P$ for the STAM (staminate spikelet) scan along the B73 v5 genome on the
+authentic $118{,}838$-SNP Chen panel under the published mixed model (Family$+$K); one
+line per coverage $\lambda\in\{0.1,0.2,0.5,1,5,10,20\}\times$ (viridis) plus each
+caller's $\lambda=\infty$ ceiling (black); lines never connect across chromosomes. All
+five panels degrade the \emph{identical} real TeoNAM truth genotypes with the same read
+model and feed the same Family$+$K scan --- only the genotype caller differs.
+(Panel key continued next page.)}
 \label{fig:stam-sweep}
+\end{figure}
+
+\begin{figure}[t!]
+\ContinuedFloat
+\caption{\textbf{(A)} no-HMM interpolation control (per-site genotype-likelihood,
+Hardy--Weinberg prior); \textbf{(B)}~bbNIL, \textbf{(C)}~RTIGER, \textbf{(D)}~LB-Impute,
+\textbf{(E)}~binhmm. Because the kinship term absorbs the ancestry-collinear
+domestication QTL, the panels are read for genome-wide false-positive control, not peak
+power: the control admits a dense spurious-peak forest (worst at intermediate coverage)
+while the duration-aware callers stay clean and localized, RTIGER and binhmm cleanest
+(cf.\ Table~\ref{tab:ranking}). Up/down triangles mark $\mathrm{LOD}$-5 loci at
+$\lambda=\infty$~/~$0.5\times$. Dotted line: $\mathrm{LOD}=5$. Compute:
+\texttt{zealhmm/analysis/teonam-qtl-recovery-mlm-118k.qmd}.}
 \end{figure}
 
 \subsection{Application to the paired BRB + skim cohort}
@@ -451,13 +470,15 @@ ancestry callers are normally calibrated against. Setting each caller's segmenta
 parameter by a minimum-distance match to the \texttt{simcross} donor-fragment
 distribution --- rather than by maximizing a likelihood or a smoothness score --- gives
 values that reconstruct held-out simulated truth to ${\approx}0.99$ marker-Dice and,
-more importantly, preserve downstream mapping signal on an \emph{independent} real
-panel: the STAM joint-linkage peaks in TeoNAM survive degradation to $0.1\times$ under
-the duration-aware callers, whereas the no-HMM control loses them to heterozygous
-excess. That the same parameters chosen on simulation carry over to real genotypes, and
-that the fragment-scale calibration --- not maximal smoothing --- is what tracks mapping
-accuracy, together support the central claim that simulation calibration is a
-sufficient substitute for truth-sample calibration.
+more importantly, carry over to an \emph{independent} real panel: on TeoNAM degraded
+across coverage and re-scanned under the published mixed model, the duration-aware
+callers keep the association landscape clean and localized down to $0.1\times$, whereas
+the no-HMM control admits a genome-wide forest of spurious peaks --- the same
+false-positive ordering the band-limited noise metric predicts. That the parameters
+chosen on simulation carry over to real genotypes, and that the fragment-scale
+calibration --- not maximal smoothing --- is what tracks landscape cleanliness, together
+support the central claim that simulation calibration is a sufficient substitute for
+truth-sample calibration.
 
 The approach has real limits. Per-site zygosity is not recoverable at skim depth for
 fundamental reasons --- a rare-allele prior forces lone alternate reads to
@@ -486,7 +507,8 @@ the trait panels are assembled.
 None declared.
 
 \section*{Funding}
-\todo{Funding sources.}
+This work was supported by the USDA--ARS as part of CERCA --- Circular Economy that
+Reimagines Corn Agriculture (8062-21000-052-000-D).
 
 \section*{Data availability}
 The \texttt{nilHMM} package, the \texttt{zealhmm} analysis repository, and the
@@ -502,7 +524,7 @@ editing.
 finalized.}
 
 \section{Acknowledgments}
-\todo{Acknowledgments.}
+We thank Qiuyue Chen for sharing the TeoNAM genotype and phenotype data.
 
 \bibliography{references}
 
@@ -510,7 +532,6 @@ finalized.}
 \onecolumn
 \section*{Supplement}
 \beginsupplement
-\todo[inline]{Supplementary chromosome-painting sanity check (source $\times$
-caller tracks) and any supporting tables.}
+\todo[inline]{Supporting tables (per-caller calibration CSVs, NIL manifest) as needed.}
 
 \end{document}
