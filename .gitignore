@@ -21,3 +21,6 @@ main.pdf
 
 # supplement build artifact
 supplement_engine_math.pdf
+
+# TikZ figure PDF intermediates (tracked assets are the .png)
+figures/*.pdf

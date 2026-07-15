@@ -52,9 +52,11 @@ low-cost sequencing normally require calibrating a caller against high-coverage
 truth samples, of which few are usually available. We ask whether the calibration
 can instead come from cheap simulations.\\
 \textbf{Results:} We present nilHMM, a unified duration-aware three-state
-(REF/HET/ALT) hidden Markov model whose emission is the only swappable axis,
-expressing four ancestry callers (nNIL, a Julia-free RTIGER port, a binned
-Gaussian caller, and ATLAS) through one engine. We show that the caller
+(REF/HET/ALT) hidden Markov model with two swappable axes --- the emission (read
+counts vs.\ a hard genotype call) and the duration (geometric vs.\ rigidity) ---
+that expresses a family of ancestry callers as coordinates in one engine: nNIL,
+bbNIL, RTIGER (a Julia-free port), and catiger, alongside a binned Gaussian caller
+and an RNA caller (ATLAS). We show that the caller
 parameters --- rigidity, error rate, and emission means --- can be calibrated from
 Broman \texttt{simcross} simulations rather than from scarce high-coverage truth,
 and that the calibrated parameters transfer across skim WGS and 3\textquotesingle{}
@@ -106,23 +108,55 @@ caller family.}
 \label{sec:materials:methods}
 
 \subsection{A unified duration-aware three-state HMM engine}
-One HMM over states REF/HET/ALT. Two axes are swappable and define each caller:
-the \emph{emission} (count/BetaBinomial vs.\ categorical genotype-confusion) and
-the \emph{duration/rigidity} layer (geometric, rigidity, or HSMM). Design
-start-priors come from the pedigree (BC2S2/BC2S3). The engine is data-agnostic:
-$(\text{data}, \text{params}) \rightarrow \text{calls}$.
-\todo{Fig F1: engine + caller-family schematic.}
+One HMM over states REF/HET/ALT (Figure~\ref{fig:engine}A). Two axes are swappable
+and define each caller: the \emph{emission} (count/BetaBinomial vs.\ categorical
+genotype-confusion) and the \emph{duration/rigidity} layer (geometric, rigidity, or
+HSMM). Design start-priors come from the pedigree (BC2S2/BC2S3). The engine is
+data-agnostic: $(\text{data}, \text{params}) \rightarrow \text{calls}$. Every named
+caller is a coordinate in this (emission $\times$ duration) space
+(Figure~\ref{fig:engine}B).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_engine.png}
+\caption{\textbf{One engine; every caller has a coordinate in it.}
+\textbf{A} The shared duration-aware three-state HMM. Hidden ancestry
+$s_t\in\{\mathrm{REF},\mathrm{HET},\mathrm{ALT}\}$ evolves along the marker sequence
+with self-transition $1-r$ and transition matrix $A$, emitting the observation $o_t$
+(read counts $(n_t,a_t)$ or a hard call $g_t$) through the state-conditional emission
+$\psi_s$. The two module boxes are the engine's independent, swappable axes: the
+\emph{duration} axis (geometric self-transition, or the rigidity Erlang
+state-expansion with minimum run length $\ell$) and the \emph{emission} axis
+(BetaBinomial on read counts, or a categorical genotype-confusion), chosen by data
+modality. \textbf{B} The named callers as coordinates in the (emission $\times$
+duration) grid: \textbf{nNIL} and \textbf{RTIGER} on the published main diagonal, and
+bbNIL and catiger on the anti-diagonal (this work's extensions). \textbf{ATLAS} wraps
+GOOGA competitive-mapping (allele-specific-expression) thresholding around catiger for
+RNA ancestry; binhmm, the pedigree caller, the external ports (LB-Impute, FSFHap), and
+the no-HMM control sit off the shared axes.}
+\label{fig:engine}
+\end{figure*}
 
 \subsection{The callers}
-\subsubsection{nNIL} Count/BetaBinomial emission with a geometric duration; the
-Holland near-isogenic-line caller \citex{Holland nNIL}.
-\subsubsection{RTIGER} A Julia-free port in which a rigidity layer replaces the
-free geometric duration \citex{RTIGER}.
-\subsubsection{binhmm} A three-state Gaussian emission on per-bin allele
-frequency with REF anchored at the coverage floor (dense skim only).
-\subsubsection{ATLAS} Competitive transcript-level alignment scores $\rightarrow$
-hard genotype $\rightarrow$ categorical emission; a GOOGA-shadow \citex{GOOGA},
-built for expression-driven RNA depth and allele-specific expression.
+Each named caller is a coordinate in the (emission $\times$ duration) grid
+(Figure~\ref{fig:engine}B); the four grid callers differ only along those two axes.
+\subsubsection{nNIL} Categorical genotype-confusion emission with a geometric
+duration --- Holland's original near-isogenic-line caller, on hard genotype calls
+\citex{Holland nNIL}.
+\subsubsection{bbNIL} The same geometric duration with a count/BetaBinomial
+emission; the low-coverage extension of nNIL to read-count data, where the
+self-transition is the smoother.
+\subsubsection{RTIGER} Count/BetaBinomial emission with a rigidity (hard
+minimum-run) duration in place of the free geometric one; a Julia-free port
+\citex{RTIGER}.
+\subsubsection{catiger} Categorical emission with the rigidity duration --- the
+categorical$+$rigidity caller.
+\subsubsection{ATLAS} An RNA caller: because expression and allele-specific
+expression confound the competitive-alignment allele fraction (so the BetaBinomial
+cannot model it), ATLAS thresholds the competitive counts to hard genotype calls
+(GOOGA) and runs catiger --- a wrapper, GOOGA $+$ catiger \citex{GOOGA}.
+\subsubsection{binhmm} A three-state Gaussian emission on per-bin allele frequency
+with REF anchored at the coverage floor (dense skim only); off the shared axes.
 
 \subsection{Data sources and marker sets}
 Skim (low-coverage WGS with teosinte--B73 wideseq filtering), BRB-seq
@@ -194,7 +228,7 @@ genotype-likelihood caller under a Hardy--Weinberg prior, for which a single
 alternate read is already called heterozygous. Because ancestry is a long-block
 signal, both HMM callers reconstruct the STAM joint-linkage peaks essentially at
 their full-coverage height down to $0.1\times$: the \textit{tb1} peak holds near
-$-\log_{10}P\approx17$ across the whole sweep (nNIL never below $17.1$; RTIGER
+$-\log_{10}P\approx17$ across the whole sweep (bbNIL never below $17.1$; RTIGER
 dips only to $16.1$ at $0.1\times$, from a $\lambda=\infty$ baseline of $17.3$),
 and the heterozygous-call fraction stays at the $\sim$8\% truth level. The no-HMM
 control, deciding each site independently, instead inflates heterozygous calls to
@@ -217,7 +251,7 @@ mosaics with the same read model and feed the same
 $\mathrm{STAM}\sim\mathrm{Family}+\mathrm{marker}$ scan --- only the genotype
 caller differs. \textbf{(A)} A no-HMM interpolation control (per-site
 genotype-likelihood caller with a Hardy--Weinberg prior; the het-excess control).
-\textbf{(B)}~nNIL and \textbf{(C)}~RTIGER, the duration-aware HMM callers. The HMM
+\textbf{(B)}~bbNIL and \textbf{(C)}~RTIGER, the duration-aware HMM callers. The HMM
 callers hold the joint-linkage peaks near baseline down to $0.1\times$, whereas
 the control shows heterozygous excess and greater peak attenuation at low
 coverage. Dotted line: $\mathrm{LOD}=5$. Compute:
