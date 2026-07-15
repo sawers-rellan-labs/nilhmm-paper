@@ -70,8 +70,8 @@ independent public RIL panel (TeoNAM) degraded to low coverage and re-scanned un
 mixed model, the duration-aware callers keep the association landscape clean where a
 no-HMM control does not: the control admits a genome-wide forest of spurious peaks
 at low depth while the HMM callers stay localized. The engine further transfers across
-DNA (skim WGS) and RNA ($3'$ BRB-seq) modalities on real BZea teosinte-introgression
-NILs.\\
+DNA (skim WGS) and RNA ($3'$ BRB-seq) modalities on real ZEAL (Zea Exotic Allele Library)
+teosinte-introgression NILs.\\
 \textbf{Availability:} The \texttt{nilHMM} R package
 (\url{https://sawers-rellan-labs.github.io/nilhmm/}) and the \texttt{zealhmm}
 analysis repository (\url{https://sawers-rellan-labs.github.io/zealhmm/}) are
@@ -101,8 +101,9 @@ University, Raleigh, NC, USA. E-mail: rrellan@ncsu.edu}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \lettrine[lines=2]{\color{color2}N}{}ear-isogenic lines (NILs) carry small donor
 introgressions on an otherwise recurrent-parent background, and mapping their
-ancestry from sequencing underpins introgression and QTL studies. In the BZea
-project, teosinte donor segments are introgressed into a B73 background and read
+ancestry from sequencing underpins introgression and QTL studies. In the ZEAL
+(Zea Exotic Allele Library) project, teosinte donor segments are introgressed into a
+B73 background and read
 out by several sequencing modalities of differing cost and depth (from
 low-coverage skim whole-genome sequencing to $3'$ RNA-seq), so that the same lines
 are genotyped cheaply but at depths where most sites carry no read and a single-marker
@@ -128,7 +129,7 @@ including faithful ports of RTIGER \citep{rtiger_2023} and Holland's nNIL
 segmentation parameters can be calibrated from Broman \texttt{simcross} simulations
 rather than from scarce truth, that the calibrated callers preserve downstream QTL
 signal on an independent public RIL panel (TeoNAM) degraded to low coverage, and that
-they transfer across DNA (skim WGS) and RNA (BRB-seq) modalities of the real BZea NILs.
+they transfer across DNA (skim WGS) and RNA (BRB-seq) modalities of the real ZEAL NILs.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Materials and Methods}
@@ -142,7 +143,7 @@ genotype-confusion) and the \emph{duration/rigidity} layer (geometric, rigidity,
 HSMM). Design start-priors come from the pedigree (BC2S2/BC2S3). The engine is
 data-agnostic: $(\text{data}, \text{params}) \rightarrow \text{calls}$. Every named
 caller is a coordinate in this (emission $\times$ duration) space
-(Figure~\ref{fig:engine}B), and on real BZea NILs the callers produce concordant
+(Figure~\ref{fig:engine}B), and on real ZEAL NILs the callers produce concordant
 ancestry paint across data sources through this one engine (Figure~\ref{fig:paint}).
 
 
@@ -252,7 +253,7 @@ the no-HMM control sit off the shared axes.}
 \includegraphics[width=\textwidth]{figures/nilhmm_sanity_check_paint.png}
 \caption{\textbf{Comparison of nilHMM chromosome painting of selected samples.}
 Ancestry paint (REF gold, HET green, ALT purple) along the ten B73 v5 chromosomes for
-the vary-skim cohort, a B73 control plus ten BZea NILs spanning the skim coverage
+the vary-skim cohort, a B73 control plus ten ZEAL NILs spanning the skim coverage
 range (row label: mean skim $\lambda$ and pedigree), with six tracks per line: the
 same lines called through the nilHMM engine from two data sources (skim WGS, BRB-seq)
 crossed with the callers (binhmm, bbNIL, RTIGER, ATLAS). The B73 control paints
@@ -424,7 +425,7 @@ $\lambda=\infty$~/~$0.5\times$. Dotted line: $\mathrm{LOD}=5$. Compute:
 
 \subsection{Application to the paired BRB + skim cohort}
 As a cross-modality application we compare skim WGS and $3'$ RNA-seq (BRB-seq) on a
-pedigree-matched cohort of $334$ BZea NILs genotyped by both assays (skim mean
+pedigree-matched cohort of $334$ ZEAL NILs genotyped by both assays (skim mean
 $0.43\times$, BRB-seq mean $2.8\times$; the two depths uncorrelated across NILs), so the
 paired design isolates the modality from the sample. On the same skim reads the count
 HMM and the RTIGER port agree closely (marker concordance $0.905$), and among skim
@@ -499,7 +500,7 @@ read counts take the BetaBinomial callers (bbNIL, or RTIGER when a hard minimum 
 wanted); competitive/ASE RNA counts, whose allele fraction is expression-confounded,
 take the categorical route (ATLAS $=$ GOOGA $+$ catiger); and saturated hard genotypes
 collapse to the categorical nNIL at lower cost. The cross-modality application
-generalizes this on real BZea NILs, with a calibrated-RNA update the natural next step,
+generalizes this on real ZEAL NILs, with a calibrated-RNA update the natural next step,
 and phenotype-driven applications such as $B1$ anthocyanin mapping follow directly once
 the trait panels are assembled.
 
@@ -535,6 +536,5 @@ We thank Qiuyue Chen for sharing the TeoNAM genotype and phenotype data.
 \onecolumn
 \section*{Supplement}
 \beginsupplement
-\todo[inline]{Supporting tables (per-caller calibration CSVs, NIL manifest) as needed.}
 
 \end{document}
