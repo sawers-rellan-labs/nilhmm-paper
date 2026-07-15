@@ -120,45 +120,6 @@ low-cost projects have fewest of, and different assays (skim DNA, RNA-seq) need
 different settings, so the calibration bottleneck recurs with every modality. We ask
 whether the calibration can instead come from cheap forward simulations of the breeding
 design, whose ancestry is known exactly.
-\clearpage
-
-\begin{figure*}[ht!]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_engine.png}
-\caption{\textbf{One engine; every caller has a coordinate in it.}
-\textbf{A} The shared duration-aware three-state HMM. Hidden ancestry
-$s_t\in\{\mathrm{REF},\mathrm{HET},\mathrm{ALT}\}$ evolves along the marker sequence
-with self-transition $1-r$ and transition matrix $A$, emitting the observation $o_t$
-(read counts $(n_t,a_t)$ or a hard call $g_t$) through the state-conditional emission
-$\psi_s$. The two module boxes are the engine's independent, swappable axes: the
-\emph{duration} axis (geometric self-transition, or the rigidity Erlang
-state-expansion with minimum run length $\ell$) and the \emph{emission} axis
-(BetaBinomial on read counts, or a categorical genotype-confusion), chosen by data
-modality. \textbf{B} The named callers as coordinates in the (emission $\times$
-duration) grid: \textbf{nNIL} and \textbf{RTIGER} on the published main diagonal, and
-bbNIL and catiger on the anti-diagonal (this work's extensions). \textbf{ATLAS} wraps
-GOOGA competitive-mapping (allele-specific-expression) thresholding around catiger for
-RNA ancestry; binhmm, the pedigree caller, the external ports (LB-Impute, FSFHap), and
-the no-HMM control sit off the shared axes.}
-\label{fig:engine}
-\end{figure*}
-
-\begin{figure*}[t!]
-\centering
-\includegraphics[width=\textwidth]{figures/nilhmm_sanity_check_paint.png}
-\caption{\textbf{Comparison of nilHMM chromosome painting of selected samples.}
-Ancestry paint (REF gold, HET green, ALT purple) along the ten B73 v5 chromosomes for
-the vary-skim cohort --- a B73 control plus ten BZea NILs spanning the skim coverage
-range (row label: mean skim $\lambda$ and pedigree) --- with six tracks per line: the
-same lines called through the nilHMM engine from two data sources (skim WGS, BRB-seq)
-crossed with the callers (binhmm, bbNIL, RTIGER, ATLAS). The B73 control paints
-essentially all-REF across every track, and the source$\times$caller tracks agree on the
-donor-introgression landscape of each NIL, confirming that the named callers are
-configurations of one shared engine rather than independent programs. Compute:
-\texttt{zealhmm/analysis/nilhmm\_sanity\_check\_paint.qmd}.}
-\label{fig:paint}
-\end{figure*}
-\clearpage
 
 We present nilHMM, a single duration-aware three-state (REF/HET/ALT) HMM whose emission
 and duration layers are independent, swappable modules; every named ancestry caller ---
@@ -262,6 +223,45 @@ published joint-linkage QTL \citep{chen2019teonam}. This is a real-genotype,
 simulated-read test --- it probes the genotype$\rightarrow$degrade$\rightarrow$
 call$\rightarrow$map chain under realistic recombination and trait architecture,
 not raw low-coverage resequencing.
+\clearpage
+
+\begin{figure*}[ht!]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_engine.png}
+\caption{\textbf{One engine; every caller has a coordinate in it.}
+\textbf{A} The shared duration-aware three-state HMM. Hidden ancestry
+$s_t\in\{\mathrm{REF},\mathrm{HET},\mathrm{ALT}\}$ evolves along the marker sequence
+with self-transition $1-r$ and transition matrix $A$, emitting the observation $o_t$
+(read counts $(n_t,a_t)$ or a hard call $g_t$) through the state-conditional emission
+$\psi_s$. The two module boxes are the engine's independent, swappable axes: the
+\emph{duration} axis (geometric self-transition, or the rigidity Erlang
+state-expansion with minimum run length $\ell$) and the \emph{emission} axis
+(BetaBinomial on read counts, or a categorical genotype-confusion), chosen by data
+modality. \textbf{B} The named callers as coordinates in the (emission $\times$
+duration) grid: \textbf{nNIL} and \textbf{RTIGER} on the published main diagonal, and
+bbNIL and catiger on the anti-diagonal (this work's extensions). \textbf{ATLAS} wraps
+GOOGA competitive-mapping (allele-specific-expression) thresholding around catiger for
+RNA ancestry; binhmm, the pedigree caller, the external ports (LB-Impute, FSFHap), and
+the no-HMM control sit off the shared axes.}
+\label{fig:engine}
+\end{figure*}
+
+\begin{figure*}[t!]
+\centering
+\includegraphics[width=\textwidth]{figures/nilhmm_sanity_check_paint.png}
+\caption{\textbf{Comparison of nilHMM chromosome painting of selected samples.}
+Ancestry paint (REF gold, HET green, ALT purple) along the ten B73 v5 chromosomes for
+the vary-skim cohort --- a B73 control plus ten BZea NILs spanning the skim coverage
+range (row label: mean skim $\lambda$ and pedigree) --- with six tracks per line: the
+same lines called through the nilHMM engine from two data sources (skim WGS, BRB-seq)
+crossed with the callers (binhmm, bbNIL, RTIGER, ATLAS). The B73 control paints
+essentially all-REF across every track, and the source$\times$caller tracks agree on the
+donor-introgression landscape of each NIL, confirming that the named callers are
+configurations of one shared engine rather than independent programs. Compute:
+\texttt{zealhmm/analysis/nilhmm\_sanity\_check\_paint.qmd}.}
+\label{fig:paint}
+\end{figure*}
+\clearpage
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Results}
