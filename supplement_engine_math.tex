@@ -22,7 +22,7 @@
 \newcommand{\ALT}{\mathrm{ALT}}
 \newcommand{\Oo}{\mathcal{O}}
 \newcommand{\Ss}{\mathcal{S}}
-\newcommand{\Sr}{S_r}
+\newcommand{\Sr}{S_\ell}
 \newcommand{\Pois}{\mathrm{Pois}}
 \newcommand{\BetaBin}{\mathrm{BetaBin}}
 \newcommand{\Mult}{\mathrm{Multinom}}
@@ -414,6 +414,9 @@ hard call cannot only in the intermediate band; at saturation the count model
 % Grounded in nilhmm/R/{engine,emissions,duration}.R. The compact version of this
 % is the main-text Methods; here is the full specification.
 
+% (engine/caller-grid schematic is now main-text Figure~1; the data-channel view is
+%  Fig.~\ref{fig:dispatcher} in Text~S4.)
+
 Text~S2 established that ancestry is a spatially-correlated latent state that must
 be inferred, not read off per site, and that the emission is the one axis that
 should change with the data modality. The engine realizes exactly that: a single
@@ -421,7 +424,7 @@ duration-aware three-state HMM in which the emission and the duration/transition
 prior are independent, swappable modules and everything else is shared. It is
 data-agnostic --- $(\text{data},\text{params})\rightarrow\text{calls}$ --- so a
 caller is nothing but a choice of (emission $\times$ duration $+$ priors)
-(Text~S4). This is the local-ancestry HMM lineage
+(Text~S4; main-text Fig.~1). This is the local-ancestry HMM lineage
 \citep{falush_2003,hapmix_2009,rfmix_2013,ancestryhmm_2017} specialized to a
 biparental NIL design and decoded by standard forward--backward/Viterbi machinery
 \citep{rabiner_1989}.
@@ -496,24 +499,24 @@ the transition \emph{only} through the priors $f_1,f_2$ --- never as a baked-in
 duration --- keeping the duration a genuine free axis.
 
 \paragraph{Rigidity (Erlang state-expansion).} To enforce a hard minimum run length
-$r$ (the RTIGER-style regularizer, \citealp{rtiger_2023,tiger_2015}), each
+$\ell$ (the RTIGER-style regularizer, \citealp{rtiger_2023,tiger_2015}), each
 macro-state $m$ is expanded into a chain of
-$r$ sub-states $S'=S\times\{1,\dots,r\}$: sub-states $1,\dots,r-1$ advance
-deterministically (forcing the minimum run), and the terminal sub-state $r$ is free
+$\ell$ sub-states $S'=S\times\{1,\dots,\ell\}$: sub-states $1,\dots,\ell-1$ advance
+deterministically (forcing the minimum run), and the terminal sub-state $\ell$ is free
 --- it either self-loops to stay in $m$ (mass $A_{mm}$) or exits to sub-state $1$ of
 another macro-state $m'$ (mass $A_{mm'}$),
 \begin{equation}
 T'_{(m,k)(m',k')}=
 \begin{cases}
-1 & m'=m,\ k'=k+1,\ k<r \quad\text{(forced advance)}\\
-A_{mm} & m'=m,\ k=k'=r \quad\text{(free self-loop)}\\
-A_{mm'} & m'\ne m,\ k=r,\ k'=1 \quad\text{(free exit)}\\
+1 & m'=m,\ k'=k+1,\ k<\ell \quad\text{(forced advance)}\\
+A_{mm} & m'=m,\ k=k'=\ell \quad\text{(free self-loop)}\\
+A_{mm'} & m'\ne m,\ k=\ell,\ k'=1 \quad\text{(free exit)}\\
 0 & \text{otherwise.}
 \end{cases}
 \label{eq:rigidity}
 \end{equation}
-All $r$ sub-states of a macro-state share its emission. This is a phase-type
-(Erlang) sojourn; $r=1$ collapses Eq.~\eqref{eq:rigidity} back to
+All $\ell$ sub-states of a macro-state share its emission. This is a phase-type
+(Erlang) sojourn; $\ell=1$ collapses Eq.~\eqref{eq:rigidity} back to
 Eq.~\eqref{eq:transition}. It is a duration prior with a \emph{fixed}
 priors-derived transition --- distinct from the full rigid-HMM estimator of the
 RTIGER port (Text~S8), which additionally EM-learns $A$ and $\Psi$.
@@ -552,9 +555,9 @@ the posterior-weighted alt fraction
 pooled across a sample's chromosomes so the donor-state mean is estimated from all
 donor evidence. Equation~\eqref{eq:em-means} is exact for a Binomial and is the
 fixed-$\kappa$ mean update for the BetaBinomial; a state that is never visited keeps
-its current mean. Only the means are learned --- the run-length parameter $r$ is set
-by simulation calibration (Text~S6), not by likelihood, for the reasons given
-there.
+its current mean. Only the means are learned --- the run-length hyperparameter ($r$ or
+$\ell$) is set by simulation calibration (Text~S6), not by likelihood, for the reasons
+given there.
 
 %======================================================================
 \section{The caller family}
@@ -563,8 +566,10 @@ there.
 
 The named callers are not separate programs but points in the engine's
 $(\text{emission}\times\text{duration}+\text{priors})$ space
-(Table~\ref{tab:callers}). Four ride the shared engine of Text~S3; two are faithful
-ports of external biparental imputers, carried as baselines; and one is a
+(Table~\ref{tab:callers}; main-text Fig.~1; the data-channel view is Fig.~\ref{fig:dispatcher}). Four are the pure cells of the shared engine of
+Text~S3 --- the $(\text{emission}\times\text{duration})$ grid; a fifth, ATLAS, wraps GOOGA
+thresholding around catiger for competitive-mapping / ASE data; binhmm is an off-axis Gaussian
+track; two are faithful ports of external biparental imputers, carried as baselines; and one is a
 deliberately unsmoothed control. These biparental-population callers are the
 low-coverage analogues of the population-scale local-ancestry and haplotype-imputation
 HMMs \citep{falush_2003,hapmix_2009,rfmix_2013,ancestryhmm_2017,mosaic_2019,mach_2010,beagle_2007,stitch_2016,glimpse_2021},
@@ -578,28 +583,52 @@ the same one Text~S7 formalizes.
 \toprule
 caller & emission & duration & key param & role \\
 \midrule
-nNIL      & count / BetaBin      & geometric            & \texttt{rrate}      & count baseline; the self-transition \emph{is} the smoother \\
+nNIL      & categorical GT       & geometric            & \texttt{rrate}      & Holland's original nNIL; hard-call baseline \\
+catiger   & categorical GT       & rigidity             & \texttt{rigidity}   & hard-call $+$ min.\ run length; the categorical-rigidity caller \\
+bbNIL     & count / BetaBin      & geometric            & \texttt{rrate}      & low-coverage count extension; the self-transition \emph{is} the smoother \\
 RTIGER    & count / BetaBin      & rigidity             & \texttt{rigidity}   & min.\ run length; robust at low depth (Julia-free port) \\
-binhmm    & Gaussian / $1$\,Mb bins & sticky            & bin width           & pre-bin $\to$ 3-state Gaussian HMM; full SNP density (skim) \\
-ATLAS     & categorical GT       & geometric            & call thresholds     & competitive-alignment RNA reads $\to$ hard GT (BRB/ASE) \\
+ATLAS     & categorical GT       & rigidity             & GOOGA thresh        & competitive-mapping (ASE) ancestry; wraps GOOGA thresholding around catiger \\
 \midrule
+binhmm    & Gaussian / $1$\,Mb bins & sticky            & bin width           & pre-bin $\to$ 3-state Gaussian HMM; full SNP density (skim) \\
 LB-Impute & external             & linkage-decay dist.\ & \texttt{recombdist} & Fragoso \emph{et al.}\ biparental imputer (ported baseline) \\
 FSFHap    & external             & family-pooled EM     & \texttt{phet}       & TASSEL parent-call $+$ 5-state EM (ported baseline) \\
 control   & per-site GL, no HMM  & ---                  & ---                 & het-prone no-HMM baseline; the het-excess reference \\
 \bottomrule
 \end{tabular}
-\caption{The caller family as coordinates in the engine's two axes (top: shared
-engine) plus external ports and a control (bottom). RTIGER and TIGER
-\citep{rtiger_2023,tiger_2015}; LB-Impute \citep{lbimpute_2016}.}
+\caption{The caller family. Top: the four pure $(\text{emission}\times\text{duration})$ cells of the
+shared engine of Text~S3 --- \textbf{nNIL}/\textbf{catiger} (categorical confusion emission;
+geometric/rigidity) and \textbf{bbNIL}/\textbf{RTIGER} (BetaBinomial; geometric/rigidity) --- plus
+\textbf{ATLAS}, a caller that wraps GOOGA competitive-mapping (allele-specific-expression)
+thresholding around catiger for RNA ancestry. Bottom: an off-axis Gaussian track, two external
+ports, and the no-HMM control. RTIGER and TIGER \citep{rtiger_2023,tiger_2015}; LB-Impute
+\citep{lbimpute_2016}.}
 \label{tab:callers}
 \end{table}
 
-The four shared-engine callers differ only along the two axes of Text~S3. \textbf{nNIL}
-and \textbf{RTIGER} share the count emission and the same read-covered marker
-support, differing only in duration (geometric vs.\ rigidity); \textbf{ATLAS} swaps
-the emission to categorical because competitive-alignment RNA reads carry a hard
-call rather than an unbiased allele count (expression and allele-specific expression
-confound the count model); \textbf{binhmm} pre-bins to $\sim$1\,Mb before a 3-state
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{figures/dispatcher.png}
+\caption{\textbf{The caller family as a data-channel dispatcher.} The observation channel (the
+assay) determines the valid emission --- a specification constraint, since the counts must
+actually obey the emission model --- and only the duration remains a free choice. Hard
+genotypes (arrays), and competitive/ASE counts once GOOGA-thresholded, take the categorical
+emission (nNIL/catiger, and ATLAS); dosage read counts take the BetaBinomial (bbNIL/RTIGER);
+binned allele fractions take a Gaussian (binhmm). The red $\times$ arrows mark the
+easily-misused routes that feed the BetaBinomial data it cannot model --- hard genotypes as
+pseudo-counts, and ASE counts whose allele fraction is expression-confounded --- both into
+RTIGER.}
+\label{fig:dispatcher}
+\end{figure}
+
+The four shared-engine callers differ only along the two axes of Text~S3. Holding the emission
+at the categorical confusion model, \textbf{nNIL} (geometric --- Holland's original) and
+\textbf{catiger} (rigidity) differ only in duration; holding it at the BetaBinomial, \textbf{bbNIL}
+(geometric) and \textbf{RTIGER} (rigidity) do the same. Read across the other axis, nNIL/bbNIL share
+the geometric duration and catiger/RTIGER share rigidity, differing only in emission. \textbf{catiger}
+is the categorical$+$rigidity caller. \textbf{ATLAS} applies it to competitive-alignment RNA data:
+because expression and allele-specific expression confound the allele fraction (so the BetaBinomial
+cannot model it), ATLAS thresholds the competitive counts to hard calls (GOOGA) and runs catiger ---
+a wrapper caller, GOOGA $+$ catiger. \textbf{binhmm} pre-bins to $\sim$1\,Mb before a 3-state
 Gaussian HMM, the only track that keeps the full marker density on skim data.
 \textbf{LB-Impute} and \textbf{FSFHap} are ported verbatim as external baselines ---
 each carries its own transition/imputation model (a distance-dependent
@@ -900,41 +929,41 @@ of \citet{rtiger_2023}, which itself extends the TIGER genotyping-by-sequencing
 pipeline \citep{tiger_2015}. Unlike the fixed-transition Erlang duration layer of
 Text~S3.3 (which regularizes run length but does not learn the transition), the rHMM
 \emph{EM-fits} the transition $A$ and the emission $\Psi$ under a hard minimum-run
-constraint, and selects the rigidity $r$ by an analytic minimum-distance criterion.
+constraint, and selects the rigidity $\ell$ by an analytic minimum-distance criterion.
 We reproduce the model and estimator in condensed form; the full proofs are in the
 supplement of \citet{rtiger_2023}.
 
-\subsection{The $r$-rigid HMM and its augmented-state equivalent}
+\subsection{The $\ell$-rigid HMM and its augmented-state equivalent}
 \label{sec:rhmm-model}
 
-A state path $\Ss=(s_1,\dots,s_T)$ is \emph{$r$-rigid} if every maximal run of
-identical states has length $\ge r$; let $\Sr$ be the set of such paths. The rHMM is
+A state path $\Ss=(s_1,\dots,s_T)$ is \emph{$\ell$-rigid} if every maximal run of
+identical states has length $\ge \ell$; let $\Sr$ be the set of such paths. The rHMM is
 a standard HMM restricted to $\Sr$,
 \begin{equation}
-P_{r\mathrm{HMM}}(\Oo,\Ss;\Theta_r):=P_{\mathrm{HMM}}(\Oo,\Ss\mid \Ss\in\Sr;\Theta)
+P_{r\mathrm{HMM}}(\Oo,\Ss;\Theta_\ell):=P_{\mathrm{HMM}}(\Oo,\Ss\mid \Ss\in\Sr;\Theta)
 =\prod_{t=1}^{T}\psi_{s_t}(o_t)\ \prod_{t=1}^{T}P\!\big(s_t\mid s_{t-1},\Ss\in\Sr\big),
 \label{eq:rhmm}
 \end{equation}
-where the constrained transition is $a_{jk}$ once a run has reached length $r$ and is
-forced to stay ($\delta_{jk}$) otherwise. The $r$-th-order chain is made first-order
+where the constrained transition is $a_{jk}$ once a run has reached length $\ell$ and is
+forced to stay ($\delta_{jk}$) otherwise. The $\ell$-th-order chain is made first-order
 by the same state expansion as Eq.~\eqref{eq:rigidity}: an augmented space
-$S'=S\times\{1,\dots,r\}$ in which $(s,j)$ records a run of length $j$ in state $s$,
-carrying a standard HMM $\Theta'_r$ with $P_{\mathrm{HMM}}(\Oo,\Ss;\Theta_r)=
-P_{\mathrm{HMM}}(\Oo,\Ss'\mid j_T=r;\Theta'_r)$. This reduces inference from the
-naive $|S|^r$ to $O(|S|^2 T)$.
+$S'=S\times\{1,\dots,\ell\}$ in which $(s,j)$ records a run of length $j$ in state $s$,
+carrying a standard HMM $\Theta'_\ell$ with $P_{\mathrm{HMM}}(\Oo,\Ss;\Theta_\ell)=
+P_{\mathrm{HMM}}(\Oo,\Ss'\mid j_T=\ell;\Theta'_\ell)$. This reduces inference from the
+naive $|S|^\ell$ to $O(|S|^2 T)$.
 
 \subsection{Rigid forward--backward (E-step)}
 \label{sec:rhmm-estep}
 
-The recursions run on $\Theta'_r$ and reuse the windowed emission product
+The recursions run on $\Theta'_\ell$ and reuse the windowed emission product
 \begin{equation}
-\Psi^{t}_k \;=\!\!\prod_{u=\max(t-r+1,1)}^{\min(t,T)}\!\!\psi_k(o_u),
+\Psi^{t}_k \;=\!\!\prod_{u=\max(t-\ell+1,1)}^{\min(t,T)}\!\!\psi_k(o_u),
 \label{eq:psiwindow}
 \end{equation}
-so that the terminal ($j=r$) forward mass telescopes,
+so that the terminal ($j=\ell$) forward mass telescopes,
 \begin{equation}
-\alpha'^{\,t}_{(v,r)}=\sum_{u\ne v}\alpha'^{\,t-r}_{(u,r)}\,a_{uv}\,\Psi^{t}_v
-+\alpha'^{\,t-1}_{(v,r)}\,a_{vv}\,\psi_v(o_t),
+\alpha'^{\,t}_{(v,\ell)}=\sum_{u\ne v}\alpha'^{\,t-\ell}_{(u,\ell)}\,a_{uv}\,\Psi^{t}_v
++\alpha'^{\,t-1}_{(v,\ell)}\,a_{vv}\,\psi_v(o_t),
 \label{eq:fwd}
 \end{equation}
 with the analogous backward recursion. Collapsing the augmented posteriors back to
@@ -965,24 +994,24 @@ search; multiple chains contribute additively to the pooled sufficient statistic
 \subsection{Minimum-distance rigidity tuning}
 \label{sec:rhmm-rigidity}
 
-The rigidity $r$ is chosen not by likelihood but by controlling segmentation error.
+The rigidity $\ell$ is chosen not by likelihood but by controlling segmentation error.
 For a segment of length $u$ flanked by another state, the log-likelihood contrast
 between the true and a competing state, $\Delta_{u,x,y}$, is sampled by Monte Carlo
 under a Poisson-coverage emission $p_{k,n,z}=\Pois(n;c)\,\psi_z(k;n)$, giving the
 false-positive and false-negative segment rates
 \begin{equation}
-\mathrm{FPR}_{x\to y}(u;\Theta_r)=P\!\big(\Delta_{u,x,y}+C_{u,x,y}>0\big),
+\mathrm{FPR}_{x\to y}(u;\Theta_\ell)=P\!\big(\Delta_{u,x,y}+C_{u,x,y}>0\big),
 \qquad
-\mathrm{FNR}_{x\leftarrow y}(u;\Theta_r)=P\!\big(\tilde\Delta_{m,x,y}\le 0\big),
+\mathrm{FNR}_{x\leftarrow y}(u;\Theta_\ell)=P\!\big(\tilde\Delta_{m,x,y}\le 0\big),
 \label{eq:fprfnr}
 \end{equation}
 from which the expected numbers of false and missed segments per sample,
-$\mathrm{SE}_+(\Theta_r)$ and $\mathrm{SE}_-(\Theta_r)$, follow by a constrained
-optimization over segment-length compositions. The chosen $r$ minimizes the total
+$\mathrm{SE}_+(\Theta_\ell)$ and $\mathrm{SE}_-(\Theta_\ell)$, follow by a constrained
+optimization over segment-length compositions. The chosen $\ell$ minimizes the total
 expected segmentation error --- a \emph{minimum-distance} selection on the segment
-statistics, not an MLE of $r$. This is the analytic counterpart of the engine's
+statistics, not an MLE of $\ell$. This is the analytic counterpart of the engine's
 empirical route (Text~S6): where \citet{rtiger_2023} predict the segment error from
-$\Theta_r$ and a coverage model, nilHMM's \texttt{calibrate\_r} measures the
+$\Theta_\ell$ and a coverage model, nilHMM's \texttt{calibrate\_r} measures the
 fragment-size distance directly against \texttt{simcross} truth
 (Eq.~\eqref{eq:dice}). Both estimate the run-length scale by matching the true
 segment geometry, consistent with the bias--variance and tract-length arguments of
