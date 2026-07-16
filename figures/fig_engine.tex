@@ -101,7 +101,7 @@
 % ============================================================= PANEL (b)
 \node[plabel] at (-0.3,0.05) {B};
 \node[font=\bfseries, text=ink, anchor=west] at (0.55,0.05)
-   {Every caller has a coordinate here:\; (emission $\times$ duration) $+$ priors};
+   {The grid callers:\; (emission $\times$ duration) $+$ priors};
 \node[font=\footnotesize\itshape, text=softgray, anchor=west] at (0.55,-0.36)
    {diagonal: published callers\, $\cdot$\, anti-diagonal: this work's extensions};
 
@@ -130,20 +130,19 @@
   fullcell/.style={cell, draw=softgray!80, fill=softgray!8, line width=1pt},
   pill/.style={font=\small\bfseries, text=ink}}
 % categorical row: nNIL (geometric), catiger (rigidity)
+% (threshold-source variants GOOGA/ATLAS live in the dispatcher figure, not on these axes)
 \node[fullcell] at (\cLx,\rTy) {}; \node[pill] at (\cLx,\rTy) {nNIL};
-\node[fullcell] at (\cRx,\rTy) {};
-\node[pill, font=\small, align=center] at (\cRx,\rTy) {catiger\\[2pt]{\footnotesize\textcolor{softgray}{ATLAS}}};
+\node[fullcell] at (\cRx,\rTy) {}; \node[pill, font=\small] at (\cRx,\rTy) {catiger};
 % BetaBinomial row: bbNIL (geometric), RTIGER (rigidity)
 \node[fullcell] at (\cLx,\rBy) {}; \node[pill, font=\small] at (\cLx,\rBy) {bbNIL};
 \node[fullcell] at (\cRx,\rBy) {}; \node[pill] at (\cRx,\rBy) {RTIGER};
 
-% ---- right column: off the shared axes (ATLAS listed here) ----
+% ---- right column: off the shared axes ----
 \node[font=\footnotesize, text=ink, anchor=north west, align=left, text width=5.9cm] at (9.7,-2.05) {%
   \textbf{off the shared axes}\\[3pt]
   \textbf{binhmm} Gaussian, $\sim$1\,Mb bins, sticky\\[2pt]
   \textbf{pedigree} BP coupling (family $\times$ genome)\\[2pt]
-  \textbf{LB-Impute, FSFHap} external ports\\[2pt]
-  \textbf{control} per-site GL, no HMM};
+  \textbf{LB-Impute, FSFHap} external ports};
 
 \end{tikzpicture}
 \end{document}

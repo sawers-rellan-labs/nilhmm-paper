@@ -141,16 +141,21 @@ One HMM over states REF/HET/ALT (Figure~\ref{fig:engine}A). Two axes are swappab
 and define each caller: the \emph{emission} (count/BetaBinomial vs.\ categorical
 genotype-confusion) and the \emph{duration/rigidity} layer (geometric, rigidity, or
 HSMM). Design start-priors come from the pedigree (BC2S2/BC2S3). The engine is
-data-agnostic: $(\text{data}, \text{params}) \rightarrow \text{calls}$. Every named
-caller is a coordinate in this (emission $\times$ duration) space
-(Figure~\ref{fig:engine}B), and on real ZEAL NILs the callers produce concordant
-ancestry paint across data sources through this one engine (Figure~\ref{fig:paint}).
+data-agnostic: $(\text{data}, \text{params}) \rightarrow \text{calls}$. Each named
+caller is a configuration of this one engine, the grid callers being coordinates in
+its (emission $\times$ duration) space (Figure~\ref{fig:engine}B), and on real ZEAL NILs
+the callers produce concordant ancestry paint across data sources (Figure~\ref{fig:paint}).
 
 
 
 \subsection{The callers}
-Each named caller is a coordinate in the (emission $\times$ duration) grid
-(Figure~\ref{fig:engine}B); the four grid callers differ only along those two axes.
+The four grid callers are coordinates in the (emission $\times$ duration) grid
+(Figure~\ref{fig:engine}B), differing along those two axes. On the categorical
+emission a hard-call thresholding front-end additionally splits the channel by data
+type: SNP arrays deliver hard calls directly (nNIL, catiger), whereas
+competitive-alignment transcripts are thresholded to calls by GOOGA's error-rate model
+(GOOGA, ATLAS); this front-end is not a grid axis and is resolved by data channel in the
+dispatcher view.
 \subsubsection{nNIL} Categorical genotype-confusion emission with a geometric
 duration: Holland's original near-isogenic-line caller, on hard genotype calls
 \citep{zhong2025}.
@@ -162,10 +167,18 @@ minimum-run) duration in place of the free geometric one; a Julia-free port
 \citep{rtiger_2023}.
 \subsubsection{catiger} Categorical emission with the rigidity duration: the
 categorical$+$rigidity caller.
-\subsubsection{ATLAS} An RNA caller: because expression and allele-specific
-expression confound the competitive-alignment allele fraction (so the BetaBinomial
-cannot model it), ATLAS thresholds the competitive counts to hard genotype calls
-(GOOGA) and runs catiger: a wrapper, GOOGA $+$ catiger \citep{flagel2019,veltsos2024}.
+\subsubsection{GOOGA and ATLAS} The categorical route for competitive-alignment
+transcript data (BRB-seq RNA / ASE), where expression and allele-specific expression
+confound the allele fraction so the BetaBinomial cannot model it. Both threshold the
+competitive counts to hard genotype calls through GOOGA's per-marker error-rate model
+and then apply the categorical genotype-confusion emission; they differ only in
+duration. \textbf{GOOGA} pairs it with the geometric (recombination-fraction) duration,
+a faithful port of Flagel's HMM \citep{flagel2019,veltsos2024}, which transitions
+on recombination fractions between adjacent markers with no minimum-run constraint.
+\textbf{ATLAS} substitutes the rigidity duration, a minimum-run prior suited to the
+sparse per-gene calls of transcript data (this work). GOOGA and ATLAS thus sit at the
+same two categorical coordinates as nNIL and catiger, reached by thresholding transcript
+counts to calls rather than by consuming the hard calls arrays already provide.
 \subsubsection{binhmm} A three-state Gaussian emission on per-bin allele frequency
 with REF anchored at the coverage floor (dense skim only); off the shared axes.
 \subsubsection{External baselines and control} Two established biparental imputers
@@ -230,7 +243,7 @@ not raw low-coverage resequencing.
 \begin{figure*}[ht!]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_engine.png}
-\caption{\textbf{One engine; every caller has a coordinate in it.}
+\caption{\textbf{One engine; every caller a configuration of it.}
 \textbf{A} The shared duration-aware three-state HMM. Hidden ancestry
 $s_t\in\{\mathrm{REF},\mathrm{HET},\mathrm{ALT}\}$ evolves along the marker sequence
 with self-transition $1-r$ and transition matrix $A$, emitting the observation $o_t$
@@ -241,10 +254,12 @@ state-expansion with minimum run length $\ell$) and the \emph{emission} axis
 (BetaBinomial on read counts, or a categorical genotype-confusion), chosen by data
 modality. \textbf{B} The named callers as coordinates in the (emission $\times$
 duration) grid: \textbf{nNIL} and \textbf{RTIGER} on the published main diagonal, and
-bbNIL and catiger on the anti-diagonal (this work's extensions). \textbf{ATLAS} wraps
-GOOGA competitive-mapping (allele-specific-expression) thresholding around catiger for
-RNA ancestry; binhmm, the pedigree caller, the external ports (LB-Impute, FSFHap), and
-the no-HMM control sit off the shared axes.}
+bbNIL and catiger on the anti-diagonal (this work's extensions). The categorical
+threshold variants for transcript data, \textbf{GOOGA} (geometric, a faithful port)
+and \textbf{ATLAS} (rigidity, this work), share the two categorical coordinates and
+are resolved by data channel in the dispatcher view rather than shown as a separate
+axis; binhmm, the pedigree caller, and the external ports (LB-Impute, FSFHap) sit off
+the shared axes.}
 \label{fig:engine}
 \end{figure*}
 
@@ -498,7 +513,8 @@ architecture, but not the full noise of real low-coverage resequencing.
 In practice the engine makes the choice of caller a choice of data channel. Skim DNA
 read counts take the BetaBinomial callers (bbNIL, or RTIGER when a hard minimum run is
 wanted); competitive/ASE RNA counts, whose allele fraction is expression-confounded,
-take the categorical route (ATLAS $=$ GOOGA $+$ catiger); and saturated hard genotypes
+take the GOOGA-thresholded categorical route (GOOGA if geometric, ATLAS if a minimum
+run is wanted); and saturated hard genotypes
 collapse to the categorical nNIL at lower cost. The cross-modality application
 generalizes this on real ZEAL NILs, with a calibrated-RNA update the natural next step,
 and phenotype-driven applications such as $B1$ anthocyanin mapping follow directly once
