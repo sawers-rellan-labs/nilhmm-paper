@@ -24,3 +24,6 @@ supplement_engine_math.pdf
 
 # TikZ figure PDF intermediates (tracked assets are the .png)
 figures/*.pdf
+
+# agent/ — internal working area (plan, handoff prompts); not published
+/agent

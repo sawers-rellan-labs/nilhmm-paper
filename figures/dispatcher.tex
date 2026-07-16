@@ -35,8 +35,8 @@
 \node[colhead] at (7.3,-1.05) {valid emission};
 \node[colhead] at (12.0,-1.05) {$+$ duration $\to$ caller};
 
-% row 1: hard genotypes -> categorical -> nNIL / catiger
-\node[chbox] (ch1) at (2.6,-2.0) {hard genotypes\\(SNP arrays)};
+% row 1: hard genotypes (arrays, already called) -> categorical -> nNIL / catiger
+\node[chbox] (ch1) at (2.6,-2.0) {hard genotypes\\(SNP / dosage arrays)};
 \node[embox] (em1) at (7.3,-2.0) {categorical $\Phi_{s,g}$};
 \node[cabox] (ca1) at (12.0,-2.0) {geom $\to$ \textbf{nNIL}\\rigid $\to$ \textbf{catiger}};
 \draw[flow] (ch1) -- (em1);   \draw[flow] (em1) -- (ca1);
@@ -47,10 +47,10 @@
 \node[cabox] (ca2) at (12.0,-3.25) {geom $\to$ \textbf{bbNIL}\\rigid $\to$ \textbf{RTIGER}};
 \draw[flow] (ch2) -- (em2);   \draw[flow] (em2) -- (ca2);
 
-% row 3: competitive / ASE -> (ATLAS threshold) categorical -> nNIL / catiger
-\node[chbox] (ch3) at (2.6,-4.5) {competitive counts\\(RNA / ASE)};
+% row 3: competitive / ASE -> categorical (GOOGA threshold) -> GOOGA (geom) / ATLAS (rigid)
+\node[chbox] (ch3) at (2.6,-4.5) {competitive counts\\(transcript, RNA / ASE)};
 \node[embox] (em3) at (7.3,-4.5) {categorical $\Phi_{s,g}$\\[-1pt]{\footnotesize\color{softgray}via GOOGA threshold}};
-\node[cabox] (ca3) at (12.0,-4.5) {rigid $\to$ \textbf{ATLAS}\\[-1pt]{\footnotesize\color{softgray}(GOOGA $+$ catiger)}};
+\node[cabox] (ca3) at (12.0,-4.5) {geom $\to$ \textbf{GOOGA}\\rigid $\to$ \textbf{ATLAS}};
 \draw[flow] (ch3) -- (em3);
 \draw[flow] (em3) -- (ca3);
 
