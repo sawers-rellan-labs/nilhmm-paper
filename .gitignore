@@ -15,6 +15,7 @@
 *.snm
 *.vrb
 main.pdf
+supplement_*.pdf
 
 # macOS
 .DS_Store

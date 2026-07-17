@@ -1,0 +1,110 @@
+%% nilHMM methods paper -- optimization supplement.
+%% The C++/Rcpp reimplementation of the RTIGER and nNIL cores: a prerequisite for
+%% simulation-scale calibration, established correctness-first (equivalence to the
+%% Julia RTIGER), then throughput/memory. Structure mirrors the fork report
+%% (faustovrz/RTIGER docs/optimization.md) reframed as C++/Rcpp vs Julia.
+%% Compiles standalone or is \input into main.tex's \section*{Supplement}.
+%% SCAFFOLD: benchmark numbers are placeholders (see \todo marks); fill from
+%% analysis/rtiger-optimization-benchmark.qmd and analysis/nnil-reproduction-benchmark.qmd.
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[round,authoryear]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{hyperref}
+\usepackage{xcolor}
+\providecommand{\todo}[1]{{\footnotesize\textcolor{red}{[TODO: #1]}}}
+\newcommand{\code}[1]{\texttt{#1}}
+\setlength{\emergencystretch}{3em}
+
+\title{Supplemental Text: the C++/Rcpp reimplementation\\[2pt]
+\large Simulation-calibrated HMM ancestry calling for near-isogenic lines\\
+across sequencing modalities (nilHMM)}
+\author{Rodr\'iguez-Zapata \textit{et al.}}
+\date{}
+
+\begin{document}
+\maketitle
+
+%======================================================================
+\section{The C++/Rcpp reimplementation of the RTIGER and nNIL cores}
+\label{supp:optimization}
+%======================================================================
+
+The named callers of the main text run on a single engine reimplemented in
+C++/Rcpp (\code{nilhmm/src/}: \code{rtiger.cpp}, \code{viterbi\_batch.cpp},
+\code{emission\_count.cpp}, \code{lbimpute.cpp}, \code{fsfhap.cpp}, and the shared
+forward/backward and segment routines). This reimplementation is a prerequisite,
+not a contribution: it removes the Julia runtime that upstream RTIGER
+\citep{rtiger_2023} requires through \code{JuliaCall}, and it makes a single fit
+cheap enough to loop over the calibration sweeps and coverage sweeps of the main
+text at $10^4$ to $10^5$ markers on a laptop. We establish it correctness-first,
+then report speed and memory.
+
+The method here (a shared-panel marker sweep, a Viterbi-identical equivalence
+oracle, and a peak-RSS sweep) follows the earlier optimized-Julia benchmark of the
+performance fork \code{faustovrz/RTIGER@optimize-julia-core}, whose numbers
+(an $O(N^2)\!\to\!O(N)$ reduction in markers, and peak memory made flat in sample
+count) are the reference point against which the C++ port is measured.
+
+\paragraph{Data.} Real \emph{Arabidopsis} Col-0 $\times$ Ler allele counts
+(BioProject PRJNA720439 / SRA study SRP313911), the 109{,}703-locus panel of loci
+covered in all three of the BN/Z/AU samples, decimated by odd index to five sizes
+(6{,}857; 13{,}713; 27{,}426; 54{,}852; 109{,}703 markers per sample). The nNIL
+reproduction (Sec.~\ref{supp:nnil}) uses the Zhong \emph{et al.} nested-NIL panel.
+
+%----------------------------------------------------------------------
+\subsection{Equivalence to Julia RTIGER (correctness first)}
+%----------------------------------------------------------------------
+Both cores were run to full convergence from identical deterministic
+initialization on the shared panel at all five sizes, and their outputs compared
+position by position.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}r c c c c@{}}
+\toprule
+markers / sample & EM iters (C++ / Julia) & Viterbi match & mismatches & param max-diff \\
+\midrule
+6{,}857   & \todo{} & \todo{} & \todo{0?} & \todo{} \\
+13{,}713  & \todo{} & \todo{} & \todo{0?} & \todo{} \\
+27{,}426  & \todo{} & \todo{} & \todo{0?} & \todo{} \\
+54{,}852  & \todo{} & \todo{} & \todo{0?} & \todo{} \\
+109{,}703 & \todo{} & \todo{} & \todo{0?} & \todo{} \\
+\bottomrule
+\end{tabular}
+\caption{nilHMM C++/Rcpp vs Julia RTIGER on the shared \emph{Arabidopsis} panel:
+identical EM iteration count, Viterbi-identical ancestry paths (0 mismatches
+target), parameters agreeing to float-summation tolerance. Compute:
+\code{analysis/rtiger-optimization-benchmark.qmd}.}
+\label{tab:cpp-equiv}
+\end{table}
+
+%----------------------------------------------------------------------
+\subsection{Throughput and memory}
+%----------------------------------------------------------------------
+Per-iteration and total wall time against markers per sample (fixed iteration
+count, native build), and peak RSS as the sample count grows at fixed
+markers/sample. \todo{insert marker-scaling figure and the empirical complexity
+exponent (log-log slope) for each core; insert peak-RSS table and state whether
+memory is flat in sample count.}
+
+%======================================================================
+\section{nNIL reproduction and the calibration foil}
+\label{supp:nnil}
+%======================================================================
+nilHMM's \code{nNIL} caller (categorical genotype-confusion emission, geometric
+duration) reimplements Holland's original nested-NIL HMM \citep{zhong2025}. Two
+results: (i) run on the Zhong \emph{et al.} panel it reproduces the published
+introgression calls \todo{marker concordance / donor-segment Jaccard}; (ii) on the
+24-line SNP-chip-truth subset, the operating point Zhong \emph{et al.} selected by
+chip optimization and the \code{rrate} selected by \code{simcross} calibration (no
+chip) coincide \todo{show the two operating points and their segmentation
+agreement}. Result (ii) is the concrete population-scale evidence for the main
+text's claim that simulation substitutes for scarce high-coverage truth. Compute:
+\code{analysis/nnil-reproduction-benchmark.qmd}.
+
+\end{document}
