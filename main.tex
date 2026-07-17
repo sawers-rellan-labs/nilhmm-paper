@@ -32,7 +32,7 @@
 
 \usepackage{hyperref}
 
-\title{Simulation-calibrated HMM ancestry calling for near-isogenic lines across sequencing modalities (nilHMM)}
+\title{Simulation calibrated HMM ancestry calling for near-isogenic lines across sequencing modalities (nilHMM)}
 
 \author[1]{Fausto Rodr\'iguez-Zapata}
 \author[1,2]{Nirwan Tandukar}
@@ -51,10 +51,13 @@
 
 %%% Abstract - Bioinformatics structured form %%%%%%%%%%%%%%%%%%
 \begin{abstract}
-\noindent\textbf{Motivation:} Ancestry calls for near-isogenic lines (NILs) from
-low-cost sequencing normally require calibrating a caller against high-coverage
-truth samples, of which few are usually available. We ask whether the calibration
-can instead come from cheap simulations.\\
+\noindent\textbf{Motivation:} Near-isogenic lines (NILs) are genotyped by
+increasingly cheap sequencing, but recovering the donor ancestry mosaic from
+low-depth reads needs an HMM whose segmentation parameters are usually left at
+defaults or, at best, tuned against the few high-coverage truth samples a project
+can afford. We ask whether those parameters can instead be calibrated, and
+competing callers compared, on forward simulations of the breeding design, whose
+ancestry is known exactly.\\
 \textbf{Results:} We present nilHMM, a unified duration-aware three-state
 (REF/HET/ALT) hidden Markov model with two swappable axes, the emission (read
 counts vs.\ a hard genotype call) and the duration (geometric vs.\ rigidity),
@@ -112,24 +115,40 @@ mosaic from such data is a hidden-Markov segmentation problem: linkage makes anc
 long-block signal, and a duration-aware HMM pools evidence across markers to call
 tracts that no site resolves on its own.
 
-The practical obstacle is not the model but its calibration. An HMM ancestry caller has
-free segmentation parameters, and the established practice is to tune them against a
-handful of high-coverage truth samples: the maize nested-NIL caller of Zhong
-\emph{et al.}, for instance, optimized its HMM parameters on $24$ of $888$ lines
-re-genotyped on a SNP chip \citep{zhong2025}. Truth samples are exactly what
-low-cost projects have fewest of, and different assays (skim DNA, RNA-seq) need
-different settings, so the calibration bottleneck recurs with every modality. We ask
-whether the calibration can instead come from cheap forward simulations of the breeding
-design, whose ancestry is known exactly.
+The practical obstacle is not the model but knowing its parameters are right. An HMM
+ancestry caller has free segmentation parameters governing how readily it opens and
+closes a donor tract, yet in practice these are usually left at package defaults or
+hand-tuned and only rarely checked against ground truth. Where calibration has been
+done, for instance the maize nested-NIL caller of Zhong \emph{et al.} \citep{zhong2025},
+it relied on a scarce set of high-coverage truth samples. Those are exactly what
+low-cost projects have fewest of, and different assays (skim DNA, RNA-seq) may need
+different settings, so tying parameter choice to orthogonal truth data does not
+generalize. Forward simulation of the breeding design offers an alternative: its
+ancestry is known exactly, it is cheap to scale, and the same simulated populations that
+calibrate a caller let callers be benchmarked against one another on identical ground.
 
-We present nilHMM, a single duration-aware three-state (REF/HET/ALT) HMM whose emission
-and duration layers are independent, swappable modules; every named ancestry caller,
-including faithful ports of RTIGER \citep{rtiger_2023} and Holland's nNIL
-\citep{zhong2025}, is a coordinate in this two-axis engine. We show that the callers'
-segmentation parameters can be calibrated from Broman \texttt{simcross} simulations
-rather than from scarce truth, that the calibrated callers preserve downstream QTL
-signal on an independent public RIL panel (TeoNAM) degraded to low coverage, and that
-they transfer across DNA (skim WGS) and RNA (BRB-seq) modalities of the real ZEAL NILs.
+We present nilHMM, an R package built around a single duration-aware three-state
+(REF/HET/ALT) HMM whose emission and duration layers are independent, swappable modules.
+A family of duration-aware callers, chief among them RTIGER
+\citep{rtiger_2023} and Holland's nNIL \citep{zhong2025}, sit as coordinates on this
+two-axis engine, and the package bundles further off-engine callers and established
+external baselines so that all of them run and compare on identical inputs.
+
+Running these callers repeatedly at simulation scale first required re-implementing nNIL
+and RTIGER as a dependency-light C++/Rcpp core: the reference RTIGER depends on a Julia
+backend, and neither caller was practical to rerun across many parameter settings at the
+marker densities we use. Our ports keep genotyping and segmentation tractable from roughly $10^4$ to $10^5$
+markers on a laptop, which is what makes the benchmarking below feasible. This is a
+prerequisite rather than a contribution in itself; the reimplementation, its
+equivalence to the Julia RTIGER, and the benchmark are detailed in the optimization
+supplement.
+
+Using this engine we show that the callers' segmentation parameters can be calibrated on
+Broman \texttt{simcross} simulations rather than on scarce truth, that the calibrated
+callers preserve downstream QTL signal on an independent public RIL panel (TeoNAM)
+degraded to low coverage, and that they transfer across DNA (skim WGS) and RNA (BRB-seq)
+modalities of the real ZEAL NILs. The aim throughout is ancestry calls whose parameter
+choices are calibrated and validated rather than assumed.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Materials and Methods}
