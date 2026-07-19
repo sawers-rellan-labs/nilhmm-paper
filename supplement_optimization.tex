@@ -214,19 +214,94 @@ $N$. Compute: \code{scripts/bench\_rtiger\_cpp\_vs\_julia.R --memory}.}
 \end{table}
 
 %======================================================================
-\section{nNIL reproduction and the calibration foil}
+\section{Reproduction of the nested-NIL HMM (nNIL)}
 \label{supp:nnil}
 %======================================================================
 nilHMM's \code{nNIL} caller (categorical genotype-confusion emission, geometric
-duration) reimplements Holland's original nested-NIL HMM \citep{zhong2025}. Two
-results: (i) run on the Zhong \emph{et al.} panel it reproduces the published
-introgression calls \todo{marker concordance / donor-segment Jaccard}; (ii) on the
-24-line SNP-chip-truth subset, the operating point Zhong \emph{et al.} selected by
-chip optimization and the \code{rrate} selected by \code{simcross} calibration (no
-chip) coincide \todo{show the two operating points and their segmentation
-agreement}. Result (ii) is the concrete population-scale evidence for the main
-text's claim that simulation substitutes for scarce high-coverage truth. Compute:
-\code{analysis/nnil-reproduction-benchmark.qmd}.
+duration) reimplements Holland's nested-NIL HMM \citep{zhong2025}. The
+reimplementation is faithful by construction: the $3\times4$ emission matrix (three
+ancestry states $\times$ \{REF, het, donor, missing\} calls) is transcribed
+verbatim from the original Python (\code{File\_S11}, an \code{hmmlearn}
+\code{MultinomialHMM}), and the transition uses the identical frequency-weighted
+parameterization (self-stay $1-r$; off-diagonals split by the expected state
+frequencies $f_0, f_1, f_2$; start $[f_0, f_1, f_2]$). We verify that faithfulness
+directly, running both cores on the same genotypes and comparing calls
+position-by-position.
+
+\paragraph{Data.} The full Zhong \emph{et al.} nNIL population: File S1 raw GBS
+genotypes (884 nested-NIL lines) subset to the exact 64{,}025 markers and lines of
+the published call set (File S18), recoded \{REF, het, donor, missing\} $\to$
+\{0,1,2,3\}, giving 56{,}598{,}100 genotype states. Both cores were run from the
+published operating point (File S16: \code{nir}$=0.9$, \code{germ}$=0.01$,
+\code{gert}$=10^{-4}$, $p=0.9$, $f_1=0.00781$, $f_2=0.01118$, $r=4.7\times10^{-4}$).
+Compute: \code{scripts/nnil\_equiv/}.
+
+%----------------------------------------------------------------------
+\subsection{Equivalence to the original Python}
+%----------------------------------------------------------------------
+On the full population nilHMM's \code{nNIL} reproduces Holland's original caller to
+2 states in $5.7\times10^{7}$ (Table~\ref{tab:nnil-equiv}), and reproduces the
+\emph{published} File S18 calls exactly: the 35-state residual against File S18 is
+identical for both cores, i.e.\ an artifact of our marker/line reconstruction of
+the input, not of the caller. At \emph{every} informative (homozygous) marker the
+calls are identical; the handful of differences fall only at missing, uninformative
+positions.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+comparison (56{,}598{,}100 states) & mismatches & agreement & at informative markers \\
+\midrule
+nilHMM \code{nNIL} vs Holland \code{File\_S11} & 2  & 99.999996\% & 0 \\
+Holland \code{File\_S11} vs published File S18 & 35 & 99.9999\%   & --- \\
+nilHMM \code{nNIL} vs published File S18        & 35 & 99.9999\%   & 0 \\
+\bottomrule
+\end{tabular}
+\caption{nilHMM \code{nNIL} vs Holland's original Python (\code{hmmlearn}) and vs
+the published File S18 calls, on the full Zhong \emph{et al.} nNIL population (884
+lines $\times$ 64{,}025 markers). Identical at every informative (homozygous)
+marker; the few differences fall at missing, uninformative positions. Compute:
+\code{scripts/nnil\_equiv/}.}
+\label{tab:nnil-equiv}
+\end{table}
+
+%----------------------------------------------------------------------
+\subsection{Throughput and memory}
+%----------------------------------------------------------------------
+Both callers were run on the same memory-mapped PLINK \code{.bed} input, over an
+odd-index marker-density sweep of the full 884-line population
+(Fig.~\ref{fig:nnil-scaling}). At the full 64{,}025 markers nilHMM decodes the
+population in $\sim$4~s against $\sim$20~s for the \code{hmmlearn} caller (roughly
+$5\times$ faster), with both times scaling near-linearly in marker count. Peak
+memory separates the two: nilHMM streams one line at a time from the memory-mapped
+\code{.bed} and holds $0.8$~GiB, whereas \code{hmmlearn} reads the whole genotype
+matrix and reaches $2.3$~GiB, the gap widening with marker density.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/nnil_scaling.png}
+\caption{nNIL caller scaling with marker density over the full 884-line population
+(odd-index thinning of the 64{,}025-marker panel, shared memory-mapped
+\code{.bed}). \textbf{Left:} wall time (log-log, power-law fits); the C++/Rcpp
+\code{nNIL} is $\sim$5$\times$ faster. \textbf{Right:} peak resident memory; nilHMM
+streams rows and stays low while the \code{hmmlearn} caller holds the full matrix
+and the gap widens. Compute: \code{scripts/nnil\_equiv/06\_sweep.R}.}
+\label{fig:nnil-scaling}
+\end{figure}
+
+%----------------------------------------------------------------------
+\subsection{The calibration foil}
+%----------------------------------------------------------------------
+The reproduction above establishes that nilHMM's \code{nNIL} \emph{is} Holland's
+caller. The remaining, forward-looking result is the calibration foil: on the
+24-line SNP-chip-truth subset, whether the operating point Zhong \emph{et al.}\
+selected by chip optimization and the \code{rrate} selected by \code{simcross}
+calibration (no chip) coincide. \todo{run the simcross calibration of \code{rrate}
+on the nNIL design and overlay the two operating points and their segmentation
+agreement.} That would be the concrete population-scale evidence for the main
+text's claim that simulation substitutes for scarce high-coverage truth.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
