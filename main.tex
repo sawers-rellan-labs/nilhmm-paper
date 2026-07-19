@@ -62,7 +62,7 @@ ancestry is known exactly.\\
 (REF/HET/ALT) hidden Markov model with two swappable axes, the emission (read
 counts vs.\ a hard genotype call) and the duration (geometric vs.\ rigidity),
 that expresses a family of ancestry callers as coordinates in one engine: nNIL,
-bbNIL, RTIGER (a Julia-free port), and catiger, alongside a binned Gaussian caller
+bbNIL, RTIGER (a C++ port), and catiger, alongside a binned Gaussian caller
 (binhmm) and an RNA caller (ATLAS). We set each caller's segmentation parameter by a
 minimum-distance match to Broman \texttt{simcross} donor-fragment simulations rather
 than to scarce high-coverage truth, and show the calibrated callers reconstruct

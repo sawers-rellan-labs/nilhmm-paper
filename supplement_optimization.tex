@@ -4,8 +4,9 @@
 %% Julia RTIGER), then throughput/memory. Structure mirrors the fork report
 %% (faustovrz/RTIGER docs/optimization.md) reframed as C++/Rcpp vs Julia.
 %% Compiles standalone or is \input into main.tex's \section*{Supplement}.
-%% SCAFFOLD: benchmark numbers are placeholders (see \todo marks); fill from
-%% analysis/rtiger-optimization-benchmark.qmd and analysis/nnil-reproduction-benchmark.qmd.
+%% Section 1 (C++/Rcpp vs Julia) is FILLED from scripts/bench_rtiger_cpp_vs_julia.R
+%% (writeup: analysis/rtiger-optimization-benchmark.qmd). Section 2 (nNIL) still has
+%% \todo marks, pending the Zhong et al. panel (analysis/nnil-reproduction-benchmark.qmd).
 \documentclass[11pt]{article}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
@@ -33,34 +34,58 @@ across sequencing modalities (nilHMM)}
 \label{supp:optimization}
 %======================================================================
 
+\begin{sloppypar}\hbadness=10000\relax
 The named callers of the main text run on a single engine reimplemented in
 C++/Rcpp (\code{nilhmm/src/}: \code{rtiger.cpp}, \code{viterbi\_batch.cpp},
 \code{emission\_count.cpp}, \code{lbimpute.cpp}, \code{fsfhap.cpp}, and the shared
-forward/backward and segment routines). This reimplementation is a prerequisite,
-not a contribution: it removes the Julia runtime that upstream RTIGER
-\citep{rtiger_2023} requires through \code{JuliaCall}, and it makes a single fit
-cheap enough to loop over the calibration sweeps and coverage sweeps of the main
-text at $10^4$ to $10^5$ markers on a laptop. We establish it correctness-first,
-then report speed and memory.
+forward/backward and segment routines). This reimplementation removes the Julia
+runtime that upstream RTIGER \citep{rtiger_2023} requires through
+\code{JuliaCall}, and it makes a single fit cheap enough to loop over the
+calibration sweeps and coverage sweeps of the main text at $10^4$ to $10^5$
+markers on a laptop. We first establish its correctness, then report speed and
+memory.
+\end{sloppypar}
 
-The method here (a shared-panel marker sweep, a Viterbi-identical equivalence
-oracle, and a peak-RSS sweep) follows the earlier optimized-Julia benchmark of the
-performance fork \code{faustovrz/RTIGER@optimize-julia-core}, whose numbers
-(an $O(N^2)\!\to\!O(N)$ reduction in markers, and peak memory made flat in sample
-count) are the reference point against which the C++ port is measured.
+We benchmark the shipped C++/Rcpp core directly against the \emph{upstream
+original} Julia RTIGER \citep{rtiger_2023} on one shared marker panel: a
+Viterbi-identical equivalence oracle first, then throughput and memory. The
+original Julia is the baseline (its 109{,}703-marker convergence fit takes about
+3.4~hours).
 
 \paragraph{Data.} Real \emph{Arabidopsis} Col-0 $\times$ Ler allele counts
 (BioProject PRJNA720439 / SRA study SRP313911), the 109{,}703-locus panel of loci
-covered in all three of the BN/Z/AU samples, decimated by odd index to five sizes
-(6{,}857; 13{,}713; 27{,}426; 54{,}852; 109{,}703 markers per sample). The nNIL
-reproduction (Sec.~\ref{supp:nnil}) uses the Zhong \emph{et al.} nested-NIL panel.
+covered in all three of the BN/Z/AU samples, thinned by odd index to five sizes
+(6{,}857; 13{,}713; 27{,}426; 54{,}852; 109{,}703 markers per sample). Both cores
+were run from the identical deterministic initialization ($\alpha=[20,20,1]$,
+$\beta=[1,20,20]$, diagonal-dominant transition, uniform start), rigidity~2,
+\code{eps}~$=0.01$. Compute: \code{scripts/bench\_rtiger\_cpp\_vs\_julia.R}. The
+nNIL reproduction (Sec.~\ref{supp:nnil}) uses the Zhong \emph{et al.} nested-NIL
+panel.
+
+\paragraph{Environment.} All timings are wall-clock on an Apple M4 (10 cores,
+24~GB RAM), macOS~26.5 (\code{arm64}), single-threaded (\code{threads}~$=1$). The
+nilHMM C++/Rcpp core was built native \code{arm64} with Apple clang~17
+(\code{-std=gnu++17 -O2}); R~4.5.2, nilHMM~0.3.0, Rcpp~1.1, RcppParallel~5.1.11.
+Its forward/backward, Viterbi, and emission M-step are hand-written scalar C++
+(\code{LinkingTo}: only Rcpp and RcppParallel; no Armadillo, Eigen, or external
+BLAS/LAPACK), so the system linear-algebra library cannot affect these timings.
+Throughput points are the median of three fits. The upstream-original Julia
+RTIGER baseline (Julia~1.12.6) was run on the same hardware; its 109{,}703-marker
+convergence figures are read from those preserved runs. The full environment is
+recorded per run in \code{results/bench/rtiger\_env.txt}.
 
 %----------------------------------------------------------------------
 \subsection{Equivalence to Julia RTIGER (correctness first)}
 %----------------------------------------------------------------------
 Both cores were run to full convergence from identical deterministic
 initialization on the shared panel at all five sizes, and their outputs compared
-position by position.
+position by position (Table~\ref{tab:cpp-equiv}). At every size the two cores take
+the \emph{same} number of EM iterations, impute \emph{identical} ancestry states
+at every marker position across all three samples (0 mismatches; 329{,}109 of
+329{,}109 states at the full panel), and fit emission parameters agreeing to
+$\le 8\times10^{-6}$, which is float-summation order, not an algorithmic
+difference. The per-iteration convergence trajectories coincide on the
+$1{:}1$ line (Fig.~\ref{fig:cpp-equiv}, right).
 
 \begin{table}[htbp]
 \centering
@@ -69,28 +94,124 @@ position by position.
 \toprule
 markers / sample & EM iters (C++ / Julia) & Viterbi match & mismatches & param max-diff \\
 \midrule
-6{,}857   & \todo{} & \todo{} & \todo{0?} & \todo{} \\
-13{,}713  & \todo{} & \todo{} & \todo{0?} & \todo{} \\
-27{,}426  & \todo{} & \todo{} & \todo{0?} & \todo{} \\
-54{,}852  & \todo{} & \todo{} & \todo{0?} & \todo{} \\
-109{,}703 & \todo{} & \todo{} & \todo{0?} & \todo{} \\
+6{,}857   & 5 / 5   & 20{,}571 / 20{,}571   & 0 & $3\times10^{-6}$ \\
+13{,}713  & 7 / 7   & 41{,}139 / 41{,}139   & 0 & $4\times10^{-7}$ \\
+27{,}426  & 11 / 11 & 82{,}278 / 82{,}278   & 0 & $7\times10^{-6}$ \\
+54{,}852  & 16 / 16 & 164{,}556 / 164{,}556 & 0 & $6\times10^{-6}$ \\
+109{,}703 & 19 / 19 & 329{,}109 / 329{,}109 & 0 & $1\times10^{-6}$ \\
 \bottomrule
 \end{tabular}
-\caption{nilHMM C++/Rcpp vs Julia RTIGER on the shared \emph{Arabidopsis} panel:
-identical EM iteration count, Viterbi-identical ancestry paths (0 mismatches
-target), parameters agreeing to float-summation tolerance. Compute:
-\code{analysis/rtiger-optimization-benchmark.qmd}.}
+\caption{nilHMM C++/Rcpp vs upstream-original Julia RTIGER on the shared
+\emph{Arabidopsis} panel, run to convergence from the identical deterministic
+init. The \emph{Viterbi match} and \emph{mismatches} columns count the imputed
+ancestry states (REF/HET/ALT, one per marker) on which the two cores agree,
+respectively differ, pooled over every position in all three samples: the total
+is (markers/sample)~$\times\,3$ ($329{,}109 = 109{,}703 \times 3$ at the full
+panel). At every size the two cores take the identical EM iteration count, impute
+identical ancestry at every one of those positions (0 mismatches), and fit
+emission parameters agreeing to float-summation tolerance. Compute:
+\code{scripts/bench\_rtiger\_cpp\_vs\_julia.R}.}
 \label{tab:cpp-equiv}
 \end{table}
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/rtiger_equivalence_110K_cpp.png}
+\caption{Shared panel, 109{,}703 markers/sample, both cores run to convergence (19
+iterations each). \textbf{Left:} per-iteration wall time, original Julia
+($\sim$648~s/iter, erratic because of its emission line search) vs nilHMM C++/Rcpp
+($\sim$0.1~s/iter, flat). \textbf{Right:} each iteration's C++ convergence
+$\delta$ against the original Julia $\delta$ on a log-log $1{:}1$ line (max
+relative difference $4\times10^{-5}$), early (yellow) to late (purple). The left
+panel illustrates the speed optimization (a full-fit speed-up of $\sim$10{,}000$\times$ here,
+3.4~h to $\sim$1.2~s); the right illustrates the faithful reproduction, the two
+cores descending the identical path to convergence.}
+\label{fig:cpp-equiv}
+\end{figure}
+
 %----------------------------------------------------------------------
-\subsection{Throughput and memory}
+\subsection{Throughput}
 %----------------------------------------------------------------------
-Per-iteration and total wall time against markers per sample (fixed iteration
-count, native build), and peak RSS as the sample count grows at fixed
-markers/sample. \todo{insert marker-scaling figure and the empirical complexity
-exponent (log-log slope) for each core; insert peak-RSS table and state whether
-memory is flat in sample count.}
+On a log-log plot the per-iteration wall time against markers per sample is a
+straight line whose slope is the empirical complexity exponent
+(Fig.~\ref{fig:cpp-scaling}). The upstream original scales as
+markers$^{2.10}$, roughly quadratic, dominated by an emission M-step that rebuilds
+a \code{BetaBinomial} per marker on every optimizer evaluation. The C++/Rcpp core
+scales as markers$^{0.96}$, essentially linear, because it groups markers by
+distinct read-count pair $(k,n)$ and pre-sums the $\gamma$ weights once, so the
+emission line search costs $O(\#\text{distinct pairs})$ rather than
+$O(\#\text{markers})$. Removing that one factor of $N$ is what turns the full fit
+from hours into a second and makes the calibration and coverage sweeps of the main
+text tractable (Table~\ref{tab:cpp-speed}).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{figures/rtiger_marker_scaling_cpp.png}
+\caption{Per-iteration wall time against markers per sample on the shared panel,
+log-log; points are measurements, dashed lines the power-law fits. Original Julia
+$\sim$~markers$^{2.10}$ (quadratic), nilHMM C++/Rcpp $\sim$~markers$^{0.96}$
+(linear).}
+\label{fig:cpp-scaling}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}r r r r@{}}
+\toprule
+markers / sample & original Julia & nilHMM C++/Rcpp & speed-up \\
+\midrule
+6{,}857   & 7.0~s            & 0.02~s & $\sim$350$\times$ \\
+13{,}713  & 55~s             & 0.06~s & $\sim$900$\times$ \\
+27{,}426  & 569~s            & 0.19~s & $\sim$3{,}000$\times$ \\
+54{,}852  & 2{,}504~s        & 0.52~s & $\sim$4{,}800$\times$ \\
+109{,}703 & 12{,}303~s (3.4~h) & 1.2~s & $\sim$10{,}000$\times$ \\
+\bottomrule
+\end{tabular}
+\caption{Full-fit wall time to convergence (3 samples, \code{eps}~$=0.01$,
+rigidity~2, native arm64), original Julia vs nilHMM C++/Rcpp. The speed-up grows
+with problem size because the C++ core is near-linear where the original is
+quadratic (Fig.~\ref{fig:cpp-scaling}).}
+\label{tab:cpp-speed}
+\end{table}
+
+%----------------------------------------------------------------------
+\subsection{Memory}
+%----------------------------------------------------------------------
+The C++ E-step folds each chain into fixed-size sufficient statistics (the
+$s\times s$ transition counts, the start and emission accumulators, and a map over
+the distinct $(k,n)$ pairs) and reduces them in a fixed chain order; it never
+retains the per-sample \code{zeta}/\code{gamma}/\code{alpha}/\code{beta} arrays.
+EM scratch is therefore $O(\text{threads}\cdot T_{\max})$ rather than
+$O(N\cdot T)$: it does not grow with the sample count $N$. A peak-RSS sweep
+confirms this (Table~\ref{tab:cpp-mem}): cycling 2 to 60 samples at 50{,}000
+markers each, peak resident memory grows as only
+$\sim$162~MiB~$+\;2.1$~MiB/sample ($R^2=0.97$), where the intercept is the
+R and package runtime and the $2.1$~MiB/sample slope is the retained input count
+vectors, not EM working memory. There is no per-sample array retention, so a
+population-scale joint fit stays within a workstation's memory.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}r r@{}}
+\toprule
+samples (50{,}000 markers each) & peak RSS \\
+\midrule
+2  & 154~MiB \\
+4  & 179~MiB \\
+8  & 174~MiB \\
+16 & 207~MiB \\
+30 & 223~MiB \\
+60 & 287~MiB \\
+\bottomrule
+\end{tabular}
+\caption{nilHMM C++/Rcpp peak resident memory (\code{/usr/bin/time -l}) as the
+sample count grows at fixed markers/sample. The near-flat growth
+($\sim$2.1~MiB/sample, the held input counts) shows EM scratch does not scale with
+$N$. Compute: \code{scripts/bench\_rtiger\_cpp\_vs\_julia.R --memory}.}
+\label{tab:cpp-mem}
+\end{table}
 
 %======================================================================
 \section{nNIL reproduction and the calibration foil}
@@ -106,5 +227,8 @@ chip) coincide \todo{show the two operating points and their segmentation
 agreement}. Result (ii) is the concrete population-scale evidence for the main
 text's claim that simulation substitutes for scarce high-coverage truth. Compute:
 \code{analysis/nnil-reproduction-benchmark.qmd}.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
 
 \end{document}
