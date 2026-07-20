@@ -201,7 +201,7 @@ The per-step time and memory complexity is consolidated in Table~\ref{tab:comple
 \renewcommand{\arraystretch}{1.25}
 \begin{tabular}{@{}l l l l@{}}
 \toprule
-optimization & before (per iter) & after (per iter) & effect \\
+optimization & before (per iteration) & after (per iteration) & effect \\
 \midrule
 $\Psi$ window          & $\bigO(T s r)$              & $\bigO(T s)$                          & drop $r$ \\
 emission log-pdf       & $\bigO(T s)$ evals         & $\bigO(D s)$ evals                    & factor $T/D$ \\
@@ -299,7 +299,7 @@ iterations, i.e.\ RTIGER's convergence criterion, not a log-likelihood change.
 \small
 \begin{tabular}{@{}r c c c c@{}}
 \toprule
-markers / sample & EM iters (C++ / Julia) & Viterbi match & mismatches & param max-diff \\
+markers / sample & EM iterations (C++ / Julia) & Viterbi match & mismatches & param max-diff \\
 \midrule
 6{,}857   & 3 / 3 & 20{,}571 / 20{,}571   & 0 & $4\times10^{-7}$ \\
 13{,}713  & 3 / 3 & 41{,}139 / 41{,}139   & 0 & $6\times10^{-7}$ \\
@@ -325,8 +325,8 @@ mismatches), and fit emission parameters to float-summation tolerance. Compute:
 \includegraphics[width=\textwidth]{figures/rtiger_equivalence_r250.png}
 \caption{Full panel (109{,}703 markers/sample), rigidity $r=250$, both cores run to
 convergence (4 iterations each). \textbf{Left:} per-iteration wall time, original
-Julia ($\sim$638~s/iter, dominated by its recomputed length-$r$ emission window) vs
-nilHMM C++/Rcpp ($\sim$0.05~s/iter, flat). \textbf{Right:} each iteration's
+Julia ($\sim$638~s/iteration, dominated by its recomputed length-$r$ emission window)
+vs nilHMM C++/Rcpp ($\sim$0.05~s/iteration, flat). \textbf{Right:} each iteration's
 \emph{EM parameter delta} (the maximum absolute change in the BetaBinomial emission
 parameters $(\alpha,\beta)$ between successive EM iterations, i.e.\ RTIGER's
 convergence criterion, not a log-likelihood change), C++ against original Julia on a
