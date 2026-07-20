@@ -84,8 +84,11 @@ the \emph{same} number of EM iterations, impute \emph{identical} ancestry states
 at every marker position across all three samples (0 mismatches; 329{,}109 of
 329{,}109 states at the full panel), and fit emission parameters agreeing to
 $\le 8\times10^{-6}$, which is float-summation order, not an algorithmic
-difference. The per-iteration convergence trajectories coincide on the
-$1{:}1$ line (Fig.~\ref{fig:cpp-equiv}, right).
+difference. Their per-iteration EM convergence trajectories coincide on the
+$1{:}1$ line (Fig.~\ref{fig:cpp-equiv}, right): here the plotted $\delta$ is the
+\emph{EM parameter delta}, the maximum absolute change in the BetaBinomial emission
+parameters $(\alpha,\beta)$ between successive EM iterations, which is RTIGER's own
+convergence criterion (compared against \code{eps}), not a log-likelihood change.
 
 \begin{table}[htbp]
 \centering
@@ -120,9 +123,12 @@ emission parameters agreeing to float-summation tolerance. Compute:
 \caption{Shared panel, 109{,}703 markers/sample, both cores run to convergence (19
 iterations each). \textbf{Left:} per-iteration wall time, original Julia
 ($\sim$648~s/iter, erratic because of its emission line search) vs nilHMM C++/Rcpp
-($\sim$0.1~s/iter, flat). \textbf{Right:} each iteration's C++ convergence
-$\delta$ against the original Julia $\delta$ on a log-log $1{:}1$ line (max
-relative difference $4\times10^{-5}$), early (yellow) to late (purple). The left
+($\sim$0.1~s/iter, flat). \textbf{Right:} each iteration's \emph{EM parameter
+delta} (the maximum absolute change in the BetaBinomial emission parameters
+$(\alpha,\beta)$ between successive EM iterations, i.e.\ RTIGER's convergence
+criterion, not a log-likelihood change), C++ against original Julia on a log-log
+$1{:}1$ line (max relative difference $4\times10^{-5}$), early (yellow) to late
+(purple). The left
 panel illustrates the speed optimization (a full-fit speed-up of $\sim$10{,}000$\times$ here,
 3.4~h to $\sim$1.2~s); the right illustrates the faithful reproduction, the two
 cores descending the identical path to convergence.}
@@ -130,27 +136,41 @@ cores descending the identical path to convergence.}
 \end{figure}
 
 %----------------------------------------------------------------------
-\subsection{Throughput}
+\subsection{Throughput and memory}
 %----------------------------------------------------------------------
 On a log-log plot the per-iteration wall time against markers per sample is a
 straight line whose slope is the empirical complexity exponent
-(Fig.~\ref{fig:cpp-scaling}). The upstream original scales as
+(Fig.~\ref{fig:cpp-scaling}, left). The upstream original scales as
 markers$^{2.10}$, roughly quadratic, dominated by an emission M-step that rebuilds
 a \code{BetaBinomial} per marker on every optimizer evaluation. The C++/Rcpp core
-scales as markers$^{0.96}$, essentially linear, because it groups markers by
+scales as markers$^{0.94}$, essentially linear, because it groups markers by
 distinct read-count pair $(k,n)$ and pre-sums the $\gamma$ weights once, so the
 emission line search costs $O(\#\text{distinct pairs})$ rather than
-$O(\#\text{markers})$. Removing that one factor of $N$ is what turns the full fit
-from hours into a second and makes the calibration and coverage sweeps of the main
-text tractable (Table~\ref{tab:cpp-speed}).
+$O(\#\text{markers})$. Removing that one factor of $N$ turns the full fit from
+hours into a second and makes the calibration and coverage sweeps of the main text
+tractable (Table~\ref{tab:cpp-speed}).
+
+Memory separates the two the same way (Fig.~\ref{fig:cpp-scaling}, right). The C++
+E-step folds each chain into fixed-size sufficient statistics (the $s\times s$
+transition counts, the start and emission accumulators, and a map over the distinct
+$(k,n)$ pairs) and never retains the per-sample
+\code{zeta}/\code{gamma}/\code{alpha}/\code{beta} arrays, whereas the original holds
+them for every sample. On the shared panel the C++ core uses $\sim$5$\times$ less
+resident memory ($\sim$137--200~MiB vs $\sim$763--992~MiB). Because its EM scratch
+is $O(\text{threads}\cdot T_{\max})$ rather than $O(N\cdot T)$, that gap widens with
+sample count: a population-scale joint fit stays within a workstation's memory where
+the array-retaining original would not.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.82\textwidth]{figures/rtiger_marker_scaling_cpp.png}
-\caption{Per-iteration wall time against markers per sample on the shared panel,
-log-log; points are measurements, dashed lines the power-law fits. Original Julia
-$\sim$~markers$^{2.10}$ (quadratic), nilHMM C++/Rcpp $\sim$~markers$^{0.96}$
-(linear).}
+\includegraphics[width=\textwidth]{figures/rtiger_marker_scaling.png}
+\caption{RTIGER scaling on the shared \emph{Arabidopsis} panel, original
+array-retaining Julia vs nilHMM C++/Rcpp (both measured on the same machine, points
+are measurements, dashed lines the power-law fits). \textbf{Left:} per-iteration
+wall time (original $\sim$markers$^{2.10}$, quadratic; C++ $\sim$markers$^{0.94}$,
+linear). \textbf{Right:} peak resident memory; the C++ core streams sufficient
+statistics and stays $\sim$5$\times$ lower. Compute:
+\code{scripts/rtiger\_memory\_plot.R}.}
 \label{fig:cpp-scaling}
 \end{figure}
 
@@ -175,44 +195,6 @@ quadratic (Fig.~\ref{fig:cpp-scaling}).}
 \label{tab:cpp-speed}
 \end{table}
 
-%----------------------------------------------------------------------
-\subsection{Memory}
-%----------------------------------------------------------------------
-The C++ E-step folds each chain into fixed-size sufficient statistics (the
-$s\times s$ transition counts, the start and emission accumulators, and a map over
-the distinct $(k,n)$ pairs) and reduces them in a fixed chain order; it never
-retains the per-sample \code{zeta}/\code{gamma}/\code{alpha}/\code{beta} arrays.
-EM scratch is therefore $O(\text{threads}\cdot T_{\max})$ rather than
-$O(N\cdot T)$: it does not grow with the sample count $N$. A peak-RSS sweep
-confirms this (Table~\ref{tab:cpp-mem}): cycling 2 to 60 samples at 50{,}000
-markers each, peak resident memory grows as only
-$\sim$162~MiB~$+\;2.1$~MiB/sample ($R^2=0.97$), where the intercept is the
-R and package runtime and the $2.1$~MiB/sample slope is the retained input count
-vectors, not EM working memory. There is no per-sample array retention, so a
-population-scale joint fit stays within a workstation's memory.
-
-\begin{table}[htbp]
-\centering
-\small
-\begin{tabular}{@{}r r@{}}
-\toprule
-samples (50{,}000 markers each) & peak RSS \\
-\midrule
-2  & 154~MiB \\
-4  & 179~MiB \\
-8  & 174~MiB \\
-16 & 207~MiB \\
-30 & 223~MiB \\
-60 & 287~MiB \\
-\bottomrule
-\end{tabular}
-\caption{nilHMM C++/Rcpp peak resident memory (\code{/usr/bin/time -l}) as the
-sample count grows at fixed markers/sample. The near-flat growth
-($\sim$2.1~MiB/sample, the held input counts) shows EM scratch does not scale with
-$N$. Compute: \code{scripts/bench\_rtiger\_cpp\_vs\_julia.R --memory}.}
-\label{tab:cpp-mem}
-\end{table}
-
 %======================================================================
 \section{Reproduction of the nested-NIL HMM (nNIL)}
 \label{supp:nnil}
@@ -229,9 +211,10 @@ directly, running both cores on the same genotypes and comparing calls
 position-by-position.
 
 \paragraph{Data.} The full Zhong \emph{et al.} nNIL population: File S1 raw GBS
-genotypes (884 nested-NIL lines) subset to the exact 64{,}025 markers and lines of
-the published call set (File S18), recoded \{REF, het, donor, missing\} $\to$
-\{0,1,2,3\}, giving 56{,}598{,}100 genotype states. Both cores were run from the
+genotypes put through Holland's own \code{File\_S10} filter, which reproduces his
+filtered genotype table exactly (888 nested-NIL lines $\times$ 64{,}025 markers, 0
+cell differences), recoded \{REF, het, donor, missing\} $\to$
+\{0,1,2,3\}, giving 56{,}854{,}200 genotype states. Both cores were run from the
 published operating point (File S16: \code{nir}$=0.9$, \code{germ}$=0.01$,
 \code{gert}$=10^{-4}$, $p=0.9$, $f_1=0.00781$, $f_2=0.01118$, $r=4.7\times10^{-4}$).
 Compute: \code{scripts/nnil\_equiv/}.
@@ -239,31 +222,45 @@ Compute: \code{scripts/nnil\_equiv/}.
 %----------------------------------------------------------------------
 \subsection{Equivalence to the original Python}
 %----------------------------------------------------------------------
-On the full population nilHMM's \code{nNIL} reproduces Holland's original caller to
-2 states in $5.7\times10^{7}$ (Table~\ref{tab:nnil-equiv}), and reproduces the
-\emph{published} File S18 calls exactly: the 35-state residual against File S18 is
-identical for both cores, i.e.\ an artifact of our marker/line reconstruction of
-the input, not of the caller. At \emph{every} informative (homozygous) marker the
-calls are identical; the handful of differences fall only at missing, uninformative
-positions.
+We decode the full population with both cores at seven marker densities (odd-index
+thinning of the 64{,}025-marker panel, as in the RTIGER sweep), from identical
+thinned genotypes and the identical per-size transition rate, and compare the calls
+position by position (Table~\ref{tab:nnil-equiv}). At \emph{every} density the two
+cores agree at \emph{every} informative (homozygous) marker (0 informative-marker
+mismatches throughout, the exactness test). The only differences, a handful out of
+tens of millions of states (1 at the full panel, at most $\sim$100 at the sparsest),
+fall exclusively at missing and heterozygous positions, where two ancestry states
+are emission-equal and any Viterbi difference is a boundary tie-break, not a
+decoding disagreement. Holland's own re-run reproduces the \emph{published} File S18
+calls exactly (0 mismatches), confirming the input is byte-identical to his.
 
 \begin{table}[htbp]
 \centering
 \small
-\begin{tabular}{@{}l r r r@{}}
+\begin{tabular}{@{}r c r r r@{}}
 \toprule
-comparison (56{,}598{,}100 states) & mismatches & agreement & at informative markers \\
+markers / line & Viterbi match / states & mismatches & mismatch rate & at informative markers \\
 \midrule
-nilHMM \code{nNIL} vs Holland \code{File\_S11} & 2  & 99.999996\% & 0 \\
-Holland \code{File\_S11} vs published File S18 & 35 & 99.9999\%   & --- \\
-nilHMM \code{nNIL} vs published File S18        & 35 & 99.9999\%   & 0 \\
+64{,}025 & 56{,}854{,}199 / 56{,}854{,}200 & 1   & $1.8\times10^{-8}$ & 0 \\
+32{,}013 & 28{,}427{,}540 / 28{,}427{,}544 & 4   & $1.4\times10^{-7}$ & 0 \\
+16{,}007 & 14{,}214{,}197 / 14{,}214{,}216 & 19  & $1.3\times10^{-6}$ & 0 \\
+8{,}004  & 7{,}107{,}539 / 7{,}107{,}552   & 13  & $1.8\times10^{-6}$ & 0 \\
+4{,}002  & 3{,}553{,}756 / 3{,}553{,}776   & 20  & $5.6\times10^{-6}$ & 0 \\
+2{,}001  & 1{,}776{,}784 / 1{,}776{,}888   & 104 & $5.9\times10^{-5}$ & 0 \\
+1{,}001  & 888{,}848 / 888{,}888           & 40  & $4.5\times10^{-5}$ & 0 \\
 \bottomrule
 \end{tabular}
-\caption{nilHMM \code{nNIL} vs Holland's original Python (\code{hmmlearn}) and vs
-the published File S18 calls, on the full Zhong \emph{et al.} nNIL population (884
-lines $\times$ 64{,}025 markers). Identical at every informative (homozygous)
-marker; the few differences fall at missing, uninformative positions. Compute:
-\code{scripts/nnil\_equiv/}.}
+\caption{nilHMM \code{nNIL} vs Holland's original Python (\code{hmmlearn}) on the
+full Zhong \emph{et al.} nNIL population (888 lines), over an odd-index
+marker-density sweep of the 64{,}025-marker panel, both cores run on the same
+\code{File\_S10}-filtered genotypes and the identical per-size transition rate. The
+\emph{Viterbi match / states} column gives the agreeing ancestry states
+(REF/het/donor) out of the total, (markers/line)~$\times$~888, pooled over every
+position; \emph{mismatches} is the disagreeing count and \emph{mismatch rate} its
+fraction of the total. At every density the two
+cores are identical at every informative (homozygous) marker (0 in the last column);
+the few total differences fall only at missing and heterozygous positions, where the
+states are emission-equal. Compute: \code{scripts/nnil\_equiv/07\_equiv\_sweep.R}.}
 \label{tab:nnil-equiv}
 \end{table}
 
@@ -271,7 +268,7 @@ marker; the few differences fall at missing, uninformative positions. Compute:
 \subsection{Throughput and memory}
 %----------------------------------------------------------------------
 Both callers were run on the same memory-mapped PLINK \code{.bed} input, over an
-odd-index marker-density sweep of the full 884-line population
+odd-index marker-density sweep of the full 888-line population
 (Fig.~\ref{fig:nnil-scaling}). At the full 64{,}025 markers nilHMM decodes the
 population in $\sim$4~s against $\sim$20~s for the \code{hmmlearn} caller (roughly
 $5\times$ faster), with both times scaling near-linearly in marker count. Peak
@@ -281,8 +278,8 @@ matrix and reaches $2.3$~GiB, the gap widening with marker density.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{figures/nnil_scaling.png}
-\caption{nNIL caller scaling with marker density over the full 884-line population
+\includegraphics[width=\textwidth]{figures/nnil_marker_scaling.png}
+\caption{nNIL caller scaling with marker density over the full 888-line population
 (odd-index thinning of the 64{,}025-marker panel, shared memory-mapped
 \code{.bed}). \textbf{Left:} wall time (log-log, power-law fits); the C++/Rcpp
 \code{nNIL} is $\sim$5$\times$ faster. \textbf{Right:} peak resident memory; nilHMM
@@ -290,18 +287,6 @@ streams rows and stays low while the \code{hmmlearn} caller holds the full matri
 and the gap widens. Compute: \code{scripts/nnil\_equiv/06\_sweep.R}.}
 \label{fig:nnil-scaling}
 \end{figure}
-
-%----------------------------------------------------------------------
-\subsection{The calibration foil}
-%----------------------------------------------------------------------
-The reproduction above establishes that nilHMM's \code{nNIL} \emph{is} Holland's
-caller. The remaining, forward-looking result is the calibration foil: on the
-24-line SNP-chip-truth subset, whether the operating point Zhong \emph{et al.}\
-selected by chip optimization and the \code{rrate} selected by \code{simcross}
-calibration (no chip) coincide. \todo{run the simcross calibration of \code{rrate}
-on the nNIL design and overlay the two operating points and their segmentation
-agreement.} That would be the concrete population-scale evidence for the main
-text's claim that simulation substitutes for scarce high-coverage truth.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
