@@ -323,18 +323,25 @@ mismatches), and fit emission parameters to float-summation tolerance. Compute:
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/rtiger_equivalence_r250.png}
-\caption{Full panel (109{,}703 markers/sample), rigidity $r=250$, both cores run to
-convergence (4 iterations each). \textbf{Left:} per-iteration wall time, original
-Julia ($\sim$638~s/iteration, dominated by its recomputed length-$r$ emission window)
-vs nilHMM C++/Rcpp ($\sim$0.05~s/iteration, flat). \textbf{Right:} each iteration's
-\emph{EM parameter delta} (the maximum absolute change in the BetaBinomial emission
-parameters $(\alpha,\beta)$ between successive EM iterations, i.e.\ RTIGER's
-convergence criterion, not a log-likelihood change), C++ against original Julia on a
-log-log $1{:}1$ line (max relative difference $3\times10^{-3}$), early (yellow) to
-late (purple). The left panel illustrates the
-speed optimization; the right illustrates the faithful reproduction, the two cores
-descending the identical path to convergence.}
+\caption{Full panel, both cores run to convergence from the identical deterministic
+init. \textbf{Left:} per-iteration wall time; the original's cost is dominated by its
+recomputed length-$r$ emission window. \textbf{Right:} each iteration's \emph{EM
+parameter delta} (max $|\Delta(\alpha,\beta)|$ between EM iterations, RTIGER's
+convergence criterion, not a log-likelihood change), C++ against original Julia; the
+$1{:}1$ line (max relative difference $3\times10^{-3}$) shows the two cores descend
+the identical path to convergence.}
 \label{fig:cpp-equiv}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/rtiger_marker_scaling_r250.png}
+\caption{RTIGER scaling on the shared \emph{Arabidopsis} panel, original
+array-retaining Julia vs nilHMM C++/Rcpp; points are measurements (all five sizes),
+dashed lines the power-law fits. Left, per-iteration wall time; right, peak resident
+memory on cleanly thinned inputs, where the C++ core streams sufficient statistics
+and stays $\sim$6--7$\times$ lower. Compute: \code{scripts/rtiger\_r250\_plot.R}.}
+\label{fig:cpp-scaling}
 \end{figure}
 
 %----------------------------------------------------------------------
@@ -363,19 +370,6 @@ $\bigO(T)$), but on the sample axis the C++ scratch is $\bigO(T_{\max}\,s^2)$ ra
 than $\bigO(N\,T\,s^2)$, so the gap widens with sample count: a population-scale
 joint fit stays within a workstation's memory where the array-retaining original
 would not.
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{figures/rtiger_marker_scaling_r250.png}
-\caption{RTIGER scaling on the shared \emph{Arabidopsis} panel at rigidity $r=250$,
-original array-retaining Julia vs nilHMM C++/Rcpp. Points are measurements at all
-five sizes (both cores); dashed lines are the power-law fits. \textbf{Left:}
-per-iteration wall time (original $\sim$markers$^{1.69}$; C++
-$\sim$markers$^{0.98}$, linear). \textbf{Right:} peak resident memory on cleanly
-thinned inputs; the C++ core streams sufficient statistics and stays
-$\sim$6--7$\times$ lower. Compute: \code{scripts/rtiger\_r250\_plot.R}.}
-\label{fig:cpp-scaling}
-\end{figure}
 
 \begin{table}[htbp]
 \centering
@@ -473,12 +467,13 @@ states are emission-equal. Compute: \code{scripts/nnil\_equiv/07\_equiv\_sweep.R
 Both callers were run on the same memory-mapped PLINK \code{.bed} input, over an
 odd-index marker-density sweep of the full 888-line population
 (Fig.~\ref{fig:nnil-scaling}). At the full 64{,}025 markers nilHMM decodes the
-population in $\sim$4~s against $\sim$22~s for the \code{hmmlearn} caller (roughly
+population in $\sim$4~s against $\sim$20~s for the \code{hmmlearn} caller (roughly
 $5\times$ faster). Peak memory separates the two: nilHMM streams one line at a time
-from the memory-mapped \code{.bed} and stays near $\sim$1~GiB, whereas \code{hmmlearn}
+from the memory-mapped \code{.bed} and holds $\sim$0.8~GiB, whereas \code{hmmlearn}
 reads the genotype matrix into memory and reaches $2.3$~GiB, the gap widening with
-marker density (each measured process loads only its own marker set, so both curves
-are floored only by the language runtime at the sparsest sizes).
+marker density. Each measured process loads only its own pre-split marker set
+(\code{scripts/nnil\_equiv/materialize\_thinned\_bed.py}), so both curves scale
+cleanly with density.
 
 \begin{figure}[htbp]
 \centering
