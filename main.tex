@@ -36,6 +36,7 @@
 
 \author[1]{Fausto Rodr\'iguez-Zapata}
 \author[1,2]{Nirwan Tandukar}
+\author[1,2]{Hannah Pil}
 \author[3,4]{James B. Holland}
 \author[1]{Rub\'en Rell\'an-\'Alvarez}
 
@@ -126,6 +127,31 @@ different settings, so tying parameter choice to orthogonal truth data does not
 generalize. Forward simulation of the breeding design offers an alternative: its
 ancestry is known exactly, it is cheap to scale, and the same simulated populations that
 calibrate a caller let callers be benchmarked against one another on identical ground.
+\clearpage
+
+\begin{figure*}[ht!]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_engine.png}
+\caption{\textbf{One engine; every caller a configuration of it.}
+\textbf{A} The shared duration-aware three-state HMM. Hidden ancestry
+$s_t\in\{\mathrm{REF},\mathrm{HET},\mathrm{ALT}\}$ evolves along the marker sequence
+with self-transition $1-r$ and transition matrix $A$, emitting the observation $o_t$
+(read counts $(n_t,a_t)$ or a hard call $g_t$) through the state-conditional emission
+$\psi_s$. The two module boxes are the engine's independent, swappable axes: the
+\emph{duration} axis (geometric self-transition, or the rigidity Erlang
+state-expansion with minimum run length $\ell$) and the \emph{emission} axis
+(BetaBinomial on read counts, or a categorical genotype-confusion), chosen by data
+modality. \textbf{B} The named callers as coordinates in the (emission $\times$
+duration) grid: \textbf{nNIL} and \textbf{RTIGER} on the published main diagonal, and
+bbNIL and catiger on the anti-diagonal (this work's extensions). The categorical
+threshold variants for transcript data, \textbf{GOOGA} (geometric, a faithful port)
+and \textbf{ATLAS} (rigidity, this work), share the two categorical coordinates and
+are resolved by data channel in the dispatcher view rather than shown as a separate
+axis; binhmm, the pedigree caller, and the external ports (LB-Impute, FSFHap) sit off
+the shared axes.}
+\label{fig:engine}
+\end{figure*}
+\clearpage
 
 We present nilHMM, an R package built around a single duration-aware three-state
 (REF/HET/ALT) HMM whose emission and duration layers are independent, swappable modules.
@@ -223,15 +249,88 @@ genetic map with interference, degraded to each source's depth/error regime
 (coverage-driven missingness $\text{missing}(\lambda)=\pi+(1-\pi)e^{-k\lambda}$
 and per-read error).
 
-\subsection{Calibration and validation protocol}
-Caller parameters are calibrated on \texttt{simcross} truth: segmentation rigidity
-by minimum distance to the simulated donor-fragment distribution (not MLE), and
-$\text{err}$/emission means on degraded-simulation truth. We then validate on two
-tiers. \emph{(i) Simulated truth}: held-out simulations scored by per-bin state
-accuracy, segment-boundary error, breakpoint count, donor-footprint ROC, and
-HET-vs-ALT calibration. \emph{(ii) Empirical truth}: an independent public RIL
-panel on which the calibrated pipeline must recover published QTL from
-low-coverage-degraded real genotypes (next subsection).
+
+\clearpage
+
+\begin{figure*}[t!]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/nnil_sim_calibration.png}
+\caption{\textbf{Ancestry HMM parameter calibrations from \texttt{simcross}
+simulation or chip data are equivalent in the nNIL population.}
+\textbf{(A)} Calibration of the nNIL emission non-informative rate \texttt{nir} by
+marker mismatch, scored against the \texttt{simcross} simulated ancestry (blue) and
+against the SNP-chip calls on the 24 both-platform NILs (orange)
+\citep{zhong2025}; open circles mark each minimum ($\texttt{nir}^\star=0.70$
+simulation, $0.80$ chip), dashed verticals the donors' measured non-informative rate
+(blue, realized in the simulation; black, from the chip founder genotypes).
+\textbf{(B)} Donor introgression-size ECDF on the simulated GBS: the
+simulation-calibrated \texttt{nnil} calls (blue) against the BC5S4 simulated ancestry
+truth (blue dotted). \textbf{(C)} On the 24 both-platform NILs, introgression-size
+ECDFs of the chip-calibrated (orange) and simulation-calibrated (blue) \texttt{nnil}
+calls against the chip calls (black dotted); the annotated $p$ is a two-sample
+Kolmogorov-Smirnov test. \textbf{(D)} QQ plot of per-line introgression size from the
+two calibrations applied to the same real GBS; the solid grey line is $1{:}1$.
+Compute: \texttt{zealhmm/analysis/nnil-sim-calibration.qmd}.}
+\label{fig:simcal}
+\end{figure*}
+\clearpage
+
+\begin{figure*}[t!]
+\centering
+\includegraphics[width=\textwidth]{figures/nilhmm_sanity_check_paint.png}
+\caption{\textbf{Comparison of nilHMM chromosome painting of selected samples.}
+Ancestry paint (REF gold, HET green, ALT purple) along the ten B73 v5 chromosomes for
+the vary-skim cohort, a B73 control plus ten ZEAL NILs spanning the skim coverage
+range (row label: mean skim $\lambda$ and pedigree), with six tracks per line: the
+same lines called through the nilHMM engine from two data sources (skim WGS, BRB-seq)
+crossed with the callers (binhmm, bbNIL, RTIGER, ATLAS). The B73 control paints
+essentially all-REF across every track, and the source$\times$caller tracks agree on the
+donor-introgression landscape of each NIL, confirming that the named callers are
+configurations of one shared engine rather than independent programs. Compute:
+\texttt{zealhmm/analysis/nilhmm\_sanity\_check\_paint.qmd}.}
+\label{fig:paint}
+\end{figure*}
+\clearpage
+
+\subsection{nNIL calibration}
+Segmentation parameters are set on a Broman \texttt{simcross} forward simulation of the
+breeding design, matched to the simulated donor-fragment distribution by minimum
+distance rather than by likelihood, with the per-adjacent-marker recombination fraction
+fixed at the genetic-map value $r=2\,\mathrm{cM}/100N$ and not tuned. For the nested-NIL
+caller of \citet{zhong2025} we reproduced this on a count-from-parents simulation built
+from the real donor genotypes. The 16 NAM founders of the genotyped nNILs were taken
+from the File\_S02 SNP-chip genotypes and placed on the GBS marker frame (the
+$11{,}310$ markers shared between the QC-passing chip SNPs and the $64{,}024$-marker GBS
+set, lifted AGPv3\,$\to$\,v4\,$\to$\,v5). For each founder we simulated a BC5S4 family
+with \texttt{simcross} (Stahl interference $m=10$) and set the observed allelic dose to
+the ancestry dose times the founder allele, so donor non-informativeness emerges per
+founder from the real genotypes rather than from a scalar. Read counts were drawn at an
+effective coverage inferred from the observed GBS missing-data rate
+($\lambda\approx2.7$, with $1\%$ structural dropout and $1\%$ per-read error) and
+converted to hard genotypes by maximum likelihood (a single ALT read yields a
+homozygous-ALT call), matching the TASSEL-GBS calling of \citet{zhong2025}; $40$ lines
+per founder gave $640$ simulated nNILs. The \texttt{nnil} emission non-informative rate
+\texttt{nir} was calibrated by minimizing total marker mismatch against the simulated
+ancestry, with the $24$ both-platform SNP-chip nNILs reserved as an independent check.
+
+\subsection{ZEAL calibration}
+For the ZEAL teosinte-introgression NILs we simulated the BC2S2 (and BC2S3) skim
+breeding design directly with \texttt{simcross} and calibrated each engine caller's
+segmentation parameter (bbNIL \texttt{rrate}, RTIGER \texttt{rigidity}) by a two-stage
+minimum-distance search (a coarse log-spaced sweep to bracket the optimum, then a
+golden-section refinement) against the donor-fragment distribution of the known mosaic.
+
+\subsection{TeoNAM calibration}
+\todo[inline]{Confirm: does the TeoNAM analysis get its own RIL-design \texttt{simcross}
+calibration, or reuse the ZEAL-calibrated settings? TeoNAM currently serves as external
+validation (below), not calibration.}
+
+\subsection{Validation}
+We validate on two tiers. \emph{(i) Simulated truth}: held-out simulations scored by
+per-bin state accuracy, segment-boundary error, breakpoint count, donor-footprint ROC,
+and HET-vs-ALT calibration. \emph{(ii) Empirical truth}: an independent public RIL
+panel (TeoNAM) on which the calibrated pipeline must recover published QTL from
+low-coverage-degraded real genotypes (Results, TeoNAM population).
 
 \subsection{External validation on a public RIL panel (TeoNAM)}
 Beyond simulated truth, we test whether the calibrated pipeline preserves
@@ -257,52 +356,32 @@ published joint-linkage QTL \citep{chen2019teonam}. This is a real-genotype,
 simulated-read test: it probes the genotype$\rightarrow$degrade$\rightarrow$
 call$\rightarrow$map chain under realistic recombination and trait architecture,
 not raw low-coverage resequencing.
-\clearpage
 
-\begin{figure*}[ht!]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_engine.png}
-\caption{\textbf{One engine; every caller a configuration of it.}
-\textbf{A} The shared duration-aware three-state HMM. Hidden ancestry
-$s_t\in\{\mathrm{REF},\mathrm{HET},\mathrm{ALT}\}$ evolves along the marker sequence
-with self-transition $1-r$ and transition matrix $A$, emitting the observation $o_t$
-(read counts $(n_t,a_t)$ or a hard call $g_t$) through the state-conditional emission
-$\psi_s$. The two module boxes are the engine's independent, swappable axes: the
-\emph{duration} axis (geometric self-transition, or the rigidity Erlang
-state-expansion with minimum run length $\ell$) and the \emph{emission} axis
-(BetaBinomial on read counts, or a categorical genotype-confusion), chosen by data
-modality. \textbf{B} The named callers as coordinates in the (emission $\times$
-duration) grid: \textbf{nNIL} and \textbf{RTIGER} on the published main diagonal, and
-bbNIL and catiger on the anti-diagonal (this work's extensions). The categorical
-threshold variants for transcript data, \textbf{GOOGA} (geometric, a faithful port)
-and \textbf{ATLAS} (rigidity, this work), share the two categorical coordinates and
-are resolved by data channel in the dispatcher view rather than shown as a separate
-axis; binhmm, the pedigree caller, and the external ports (LB-Impute, FSFHap) sit off
-the shared axes.}
-\label{fig:engine}
-\end{figure*}
 
-\begin{figure*}[t!]
-\centering
-\includegraphics[width=\textwidth]{figures/nilhmm_sanity_check_paint.png}
-\caption{\textbf{Comparison of nilHMM chromosome painting of selected samples.}
-Ancestry paint (REF gold, HET green, ALT purple) along the ten B73 v5 chromosomes for
-the vary-skim cohort, a B73 control plus ten ZEAL NILs spanning the skim coverage
-range (row label: mean skim $\lambda$ and pedigree), with six tracks per line: the
-same lines called through the nilHMM engine from two data sources (skim WGS, BRB-seq)
-crossed with the callers (binhmm, bbNIL, RTIGER, ATLAS). The B73 control paints
-essentially all-REF across every track, and the source$\times$caller tracks agree on the
-donor-introgression landscape of each NIL, confirming that the named callers are
-configurations of one shared engine rather than independent programs. Compute:
-\texttt{zealhmm/analysis/nilhmm\_sanity\_check\_paint.qmd}.}
-\label{fig:paint}
-\end{figure*}
-\clearpage
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Results}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Simulation calibration}
+\subsection{nNIL population}
+
+\subsubsection{Calibration and comparison of the fragment-size distribution}
+For the nested-NIL population of \citet{zhong2025}, where an orthogonal high-coverage
+SNP-chip truth exists for 24 of the 888 lines, calibrating the emission non-informative
+rate \texttt{nir} on the count-from-parents simulation reaches the same operating point
+as calibrating against that scarce chip truth: the marker-mismatch minima sit at
+$\texttt{nir}^\star=0.70$ (simulation) and $0.80$ (chip), both on one shallow
+high-\texttt{nir} plateau near the $0.90$ of \citet{zhong2025} (Figure~\ref{fig:simcal}A).
+Applied to the same 24 both-platform lines, the two calibrations give statistically
+indistinguishable introgression-size distributions (two-sample Kolmogorov-Smirnov
+$p=1.00$), with the per-line sizes on the $1{:}1$ line (Figure~\ref{fig:simcal}C,D); the
+simulation-calibrated caller also recovers the simulated ancestry fragment distribution
+(Figure~\ref{fig:simcal}B). The simulation therefore substitutes for the scarce chip
+truth in setting the caller's one sensitive parameter.
+
+\subsection{ZEAL population}
+
+\subsubsection{Calibration}
 Before calibrating against the simulated truth we confirmed that the truth generator
 is itself unbiased. The \texttt{simcross} forward-simulation reproduces the
 single-locus breeding-scheme genotype frequencies of the design: for the BC2S2 skim
@@ -347,7 +426,7 @@ motivating the minimum-distance, not maximum-likelihood, objective. Compute:
 \label{fig:calib}
 \end{figure}
 
-\subsection{Simulation benchmark and caller ranking}
+\subsubsection{Data-source and caller comparison of the fragment-size distribution}
 Scored on a held-out simulated cohort at their calibrated settings, all three
 duration-aware callers reconstruct the donor mosaic near-perfectly: marker-level
 macro-Dice is ${\approx}0.99$ for each, and on the stricter donor-fragment metric
@@ -355,10 +434,58 @@ LB-Impute leads ($\mathrm{Dice}=0.979$, $\mathrm{FDR}=0.006$), with RTIGER
 ($0.967$, $0.013$) and bbNIL ($0.966$, $0.011$) close behind and all recovering the
 ${\sim}6{,}900$ true breakpoints to within a few percent
 (fragment-size $\mathrm{KS}\approx0.02$). The three are therefore near-equivalent on
-raw reconstruction accuracy at skim depth; they separate on the \emph{spatial
-quality} of the association landscape they produce.
+raw reconstruction accuracy at skim depth.
 
-We score that landscape geometry directly. Reading a $-\log_{10}P$ track as a spatial
+As a cross-modality application we compare skim WGS and $3'$ RNA-seq (BRB-seq) on a
+pedigree-matched cohort of $334$ ZEAL NILs genotyped by both assays (skim mean
+$0.43\times$, BRB-seq mean $2.8\times$; the two depths uncorrelated across NILs), so the
+paired design isolates the modality from the sample. On the same skim reads the count
+HMM and the RTIGER port agree closely (marker concordance $0.905$), and among skim
+callers RTIGER and the binned Gaussian caller agree most tightly ($0.945$), so the
+skim donor footprint is essentially caller-independent. Across modalities skim-RTIGER
+and BRB-RTIGER concord at $0.827$ over the whole cohort, and per-NIL donor Jaccard
+reaches $0.79$ where the pedigrees genuinely correspond: the two assays recover the
+same teosinte-introgression landscape (Figure~\ref{fig:brbskim}).
+
+The one caller that does \emph{not} transfer unchanged to BRB-seq is the count HMM
+with fixed emission means: RNA read depth is reference-biased and expression-scaled, so
+a donor-homozygous alt-fraction sits near $0.5$ rather than $1$, and a fixed
+$\theta_{\mathrm{ALT}}\approx1$ collapses true donor-homozygous tracts into heterozygous calls
+(BRB donor genome fraction ${\approx}0.04$ vs.\ ${\approx}0.17$ for skim). This is
+precisely the regime the engine's EM-fittable emission means and the categorical ATLAS
+route are designed for, and re-running the RNA caller with fitted means (rather than the
+provisional fixed-mean run shown here) is the natural next step; we present the paired
+comparison as the current cross-modality evidence, with the calibrated-RNA update
+pending. Chromosome painting appears only as a supplementary QC illustration.
+
+\begin{figure}[tb]
+\centering
+\includegraphics[width=\columnwidth]{figures/brb_skim_concordance.png}
+\caption{\textbf{Paired skim-WGS and BRB-seq ancestry calls on $334$ NILs.}
+\textbf{A} Pooled genome-wide state concordance between callers on the pedigree-matched
+cohort: same-read cross-caller agreement (green; Skim-RTIGER vs the binned caller
+$0.945$ and vs the count HMM $0.905$) is higher than cross-modality agreement (purple;
+Skim-RTIGER vs BrB-RTIGER $0.827$). \textbf{B} Per-NIL donor-footprint Jaccard for the
+four NILs with both target-seq and BRB-seq, cross-modality (purple) and same-reads
+(green); the two assays recover the same donor landscape (Jaccard up to $0.79$), the one
+low pair (Zx.0540) reflecting a residual BRB-seq identity mismatch. The count HMM on
+BRB-seq requires EM-fitted emission means (fixed means collapse donor-homozygous tracts
+to heterozygous); the full per-NIL chromosome painting is a supplementary QC figure.
+Skim mean $0.43\times$, BRB-seq mean $2.8\times$. Compute:
+\texttt{zealtiger/skim\_brbseq\_skimbin.qmd}.}
+\label{fig:brbskim}
+\end{figure}
+
+\subsection{TeoNAM population}
+
+\subsubsection{Calibration}
+\todo[inline]{Confirm whether TeoNAM is calibrated on its own RIL-design \texttt{simcross}
+simulation or reuses the ZEAL-calibrated settings; at present it is used for external
+validation only (below).}
+
+\subsubsection{Caller comparison of GWAS/JLM profiles}
+The callers separate not on reconstruction accuracy but on the spatial quality of the
+association landscape they produce, which we score directly. Reading a $-\log_{10}P$ track as a spatial
 stochastic process, a genuine QTL produces autocorrelated evidence at the inherited
 ancestry-tract scale, whereas caller error injects high-frequency noise; we therefore
 measure the fraction of spectral power in the sub-tract noise band (between the grid
@@ -398,7 +525,6 @@ callers in reverse order (Wiener-Khinchin).}
 \label{tab:ranking}
 \end{table}
 
-\subsection{QTL recovery on a public RIL panel (TeoNAM)}
 The decisive test is whether the simulation-calibrated callers preserve a clean
 association scan on an independent \emph{real} panel as coverage falls. We degrade the
 real TeoNAM truth genotypes across the sweep, re-call ancestry with each caller, and
@@ -457,46 +583,6 @@ $\lambda=\infty$~/~$0.5\times$. Dotted line: $\mathrm{LOD}=5$. Compute:
 \texttt{zealhmm/analysis/teonam-qtl-recovery-mlm-118k.qmd}.}
 \end{figure}
 
-\subsection{Application to the paired BRB + skim cohort}
-As a cross-modality application we compare skim WGS and $3'$ RNA-seq (BRB-seq) on a
-pedigree-matched cohort of $334$ ZEAL NILs genotyped by both assays (skim mean
-$0.43\times$, BRB-seq mean $2.8\times$; the two depths uncorrelated across NILs), so the
-paired design isolates the modality from the sample. On the same skim reads the count
-HMM and the RTIGER port agree closely (marker concordance $0.905$), and among skim
-callers RTIGER and the binned Gaussian caller agree most tightly ($0.945$), so the
-skim donor footprint is essentially caller-independent. Across modalities skim-RTIGER
-and BRB-RTIGER concord at $0.827$ over the whole cohort, and per-NIL donor Jaccard
-reaches $0.79$ where the pedigrees genuinely correspond: the two assays recover the
-same teosinte-introgression landscape (Figure~\ref{fig:brbskim}).
-
-The one caller that does \emph{not} transfer unchanged to BRB-seq is the count HMM
-with fixed emission means: RNA read depth is reference-biased and expression-scaled, so
-a donor-homozygous alt-fraction sits near $0.5$ rather than $1$, and a fixed
-$\theta_{\mathrm{ALT}}\approx1$ collapses true donor-homozygous tracts into heterozygous calls
-(BRB donor genome fraction ${\approx}0.04$ vs.\ ${\approx}0.17$ for skim). This is
-precisely the regime the engine's EM-fittable emission means and the categorical ATLAS
-route are designed for, and re-running the RNA caller with fitted means (rather than the
-provisional fixed-mean run shown here) is the natural next step; we present the paired
-comparison as the current cross-modality evidence, with the calibrated-RNA update
-pending. Chromosome painting appears only as a supplementary QC illustration.
-
-\begin{figure}[tb]
-\centering
-\includegraphics[width=\columnwidth]{figures/brb_skim_concordance.png}
-\caption{\textbf{Paired skim-WGS and BRB-seq ancestry calls on $334$ NILs.}
-\textbf{A} Pooled genome-wide state concordance between callers on the pedigree-matched
-cohort: same-read cross-caller agreement (green; Skim-RTIGER vs the binned caller
-$0.945$ and vs the count HMM $0.905$) is higher than cross-modality agreement (purple;
-Skim-RTIGER vs BrB-RTIGER $0.827$). \textbf{B} Per-NIL donor-footprint Jaccard for the
-four NILs with both target-seq and BRB-seq, cross-modality (purple) and same-reads
-(green); the two assays recover the same donor landscape (Jaccard up to $0.79$), the one
-low pair (Zx.0540) reflecting a residual BRB-seq identity mismatch. The count HMM on
-BRB-seq requires EM-fitted emission means (fixed means collapse donor-homozygous tracts
-to heterozygous); the full per-NIL chromosome painting is a supplementary QC figure.
-Skim mean $0.43\times$, BRB-seq mean $2.8\times$. Compute:
-\texttt{zealtiger/skim\_brbseq\_skimbin.qmd}.}
-\label{fig:brbskim}
-\end{figure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Discussion}
@@ -557,10 +643,16 @@ are public \citep{chen2019teonam,tomura2025ensemble}.
 \textbf{Fausto Rodr\'iguez-Zapata:} Conceptualization, Methodology, Software, Formal
 analysis, Visualization, Writing (original draft).
 \textbf{Nirwan Tandukar:} Data curation, Investigation.
+\textbf{Hannah Pil:} Investigation, Resources.
 \textbf{James B. Holland:} Methodology, Conceptualization, Writing (review \&
 editing).
 \textbf{Rub\'en Rell\'an-\'Alvarez:} Conceptualization, Supervision, Funding
 acquisition, Writing (review \& editing).
+
+\section*{Use of generative AI}
+Anthropic's Claude Code (Opus 4.8) was used to assist with porting the ancestry
+callers, organizing data, and drafting the manuscript. The authors reviewed and edited
+all outputs and take full responsibility for the content of this article.
 
 \section{Acknowledgments}
 We thank Qiuyue Chen for sharing the TeoNAM genotype and phenotype data.
