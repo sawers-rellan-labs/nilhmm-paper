@@ -19,6 +19,22 @@
 \newcommand{\citex}[1]{{\small \textcolor{red}{CITE(#1)}}}
 \newcommand{\X}{{\textcolor{red}{X}}}
 
+%%%%%%% Caller names: lowercase, fixed-width (see nilhmm/design/TERMINOLOGY.md).
+% Lowercase macro = OUR nilhmm caller. Capitalized roman "nNIL" = the population,
+% "RTIGER"/"GOOGA" = the upstream algorithm -- write those as plain text, not these.
+% \xspace keeps the following space (so "\rtiger (port)" is not "rtiger(port)").
+\usepackage{xspace}
+\newcommand{\nnil}{\texttt{nnil}\xspace}
+\newcommand{\bbnil}{\texttt{bbnil}\xspace}
+\newcommand{\catiger}{\texttt{catiger}\xspace}
+\newcommand{\rtiger}{\texttt{rtiger}\xspace}
+\newcommand{\googa}{\texttt{googa}\xspace}
+\newcommand{\atlas}{\texttt{atlas}\xspace}
+\newcommand{\binhmm}{\texttt{binhmm}\xspace}
+\newcommand{\lbimpute}{\texttt{lbimpute}\xspace}
+\newcommand{\fsfhap}{\texttt{fsfhap}\xspace}
+\newcommand{\pedigree}{\texttt{pedigree}\xspace}
+
 \newcolumntype{b}{X}
 \newcolumntype{s}{>{\hsize=.5\hsize}X}
 
@@ -62,9 +78,9 @@ ancestry is known exactly.\\
 \textbf{Results:} We present nilHMM, a unified duration-aware three-state
 (REF/HET/ALT) hidden Markov model with two swappable axes, the emission (read
 counts vs.\ a hard genotype call) and the duration (geometric vs.\ rigidity),
-that expresses a family of ancestry callers as coordinates in one engine: nNIL,
-bbNIL, RTIGER (a C++ port), and catiger, alongside a binned Gaussian caller
-(binhmm) and an RNA caller (ATLAS). We set each caller's segmentation parameter by a
+that expresses a family of ancestry callers as coordinates in one engine: \nnil,
+\bbnil, \rtiger (a C++ port), and \catiger, alongside a binned Gaussian caller
+(\binhmm) and an RNA caller (\atlas). We set each caller's segmentation parameter by a
 minimum-distance match to Broman \texttt{simcross} donor-fragment simulations rather
 than to scarce high-coverage truth, and show the calibrated callers reconstruct
 held-out simulated mosaics to ${\approx}0.99$ Dice and rank cleanly by the spatial
@@ -142,12 +158,12 @@ $\psi_s$. The two module boxes are the engine's independent, swappable axes: the
 state-expansion with minimum run length $\ell$) and the \emph{emission} axis
 (BetaBinomial on read counts, or a categorical genotype-confusion), chosen by data
 modality. \textbf{B} The named callers as coordinates in the (emission $\times$
-duration) grid: \textbf{nNIL} and \textbf{RTIGER} on the published main diagonal, and
-bbNIL and catiger on the anti-diagonal (this work's extensions). The categorical
-threshold variants for transcript data, \textbf{GOOGA} (geometric, a faithful port)
-and \textbf{ATLAS} (rigidity, this work), share the two categorical coordinates and
+duration) grid: \textbf{\nnil} and \textbf{\rtiger} on the published main diagonal, and
+\bbnil and \catiger on the anti-diagonal (this work's extensions). The categorical
+threshold variants for transcript data, \textbf{\googa} (geometric, a faithful port)
+and \textbf{\atlas} (rigidity, this work), share the two categorical coordinates and
 are resolved by data channel in the dispatcher view rather than shown as a separate
-axis; binhmm, the pedigree caller, and the external ports (LB-Impute, FSFHap) sit off
+axis; \binhmm, the \pedigree caller, and the external ports (\lbimpute, \fsfhap) sit off
 the shared axes.}
 \label{fig:engine}
 \end{figure*}
@@ -156,11 +172,11 @@ the shared axes.}
 We present nilHMM, an R package built around a single duration-aware three-state
 (REF/HET/ALT) HMM whose emission and duration layers are independent, swappable modules.
 A family of duration-aware callers, chief among them RTIGER
-\citep{rtiger_2023} and Holland's nNIL \citep{zhong2025}, sit as coordinates on this
+\citep{rtiger_2023} and Holland's \nnil \citep{zhong2025}, sit as coordinates on this
 two-axis engine, and the package bundles further off-engine callers and established
 external baselines so that all of them run and compare on identical inputs.
 
-Running these callers repeatedly at simulation scale first required re-implementing nNIL
+Running these callers repeatedly at simulation scale first required re-implementing \nnil
 and RTIGER as a dependency-light C++/Rcpp core: the reference RTIGER depends on a Julia
 backend, and neither caller was practical to rerun across many parameter settings at the
 marker densities we use. Our ports keep genotyping and segmentation tractable from roughly $10^4$ to $10^5$
@@ -197,34 +213,34 @@ the callers produce concordant ancestry paint across data sources (Figure~\ref{f
 The four grid callers are coordinates in the (emission $\times$ duration) grid
 (Figure~\ref{fig:engine}B), differing along those two axes. On the categorical
 emission a hard-call thresholding front-end additionally splits the channel by data
-type: SNP arrays deliver hard calls directly (nNIL, catiger), whereas
-competitive-alignment transcripts are thresholded to calls by GOOGA's error-rate model
-(GOOGA, ATLAS); this front-end is not a grid axis and is resolved by data channel in the
+type: SNP arrays deliver hard calls directly (\nnil, \catiger), whereas
+competitive-alignment transcripts are thresholded to calls by \googa's error-rate model
+(\googa, \atlas); this front-end is not a grid axis and is resolved by data channel in the
 dispatcher view.
-\subsubsection{nNIL} Categorical genotype-confusion emission with a geometric
+\subsubsection{\nnil} Categorical genotype-confusion emission with a geometric
 duration: Holland's original near-isogenic-line caller, on hard genotype calls
 \citep{zhong2025}.
-\subsubsection{bbNIL} The same geometric duration with a count/BetaBinomial
-emission; the low-coverage extension of nNIL to read-count data, where the
+\subsubsection{\bbnil} The same geometric duration with a count/BetaBinomial
+emission; the low-coverage extension of \nnil to read-count data, where the
 self-transition is the smoother.
-\subsubsection{RTIGER} Count/BetaBinomial emission with a rigidity (hard
+\subsubsection{\rtiger} Count/BetaBinomial emission with a rigidity (hard
 minimum-run) duration in place of the free geometric one; a Julia-free port
 \citep{rtiger_2023}.
-\subsubsection{catiger} Categorical emission with the rigidity duration: the
+\subsubsection{\catiger} Categorical emission with the rigidity duration: the
 categorical$+$rigidity caller.
-\subsubsection{GOOGA and ATLAS} The categorical route for competitive-alignment
+\subsubsection{\googa and \atlas} The categorical route for competitive-alignment
 transcript data (BRB-seq RNA / ASE), where expression and allele-specific expression
 confound the allele fraction so the BetaBinomial cannot model it. Both threshold the
-competitive counts to hard genotype calls through GOOGA's per-marker error-rate model
+competitive counts to hard genotype calls through \googa's per-marker error-rate model
 and then apply the categorical genotype-confusion emission; they differ only in
-duration. \textbf{GOOGA} pairs it with the geometric (recombination-fraction) duration,
+duration. \textbf{\googa} pairs it with the geometric (recombination-fraction) duration,
 a faithful port of Flagel's HMM \citep{flagel2019,veltsos2024}, which transitions
 on recombination fractions between adjacent markers with no minimum-run constraint.
-\textbf{ATLAS} substitutes the rigidity duration, a minimum-run prior suited to the
-sparse per-gene calls of transcript data (this work). GOOGA and ATLAS thus sit at the
-same two categorical coordinates as nNIL and catiger, reached by thresholding transcript
+\textbf{\atlas} substitutes the rigidity duration, a minimum-run prior suited to the
+sparse per-gene calls of transcript data (this work). \googa and \atlas thus sit at the
+same two categorical coordinates as \nnil and \catiger, reached by thresholding transcript
 counts to calls rather than by consuming the hard calls arrays already provide.
-\subsubsection{binhmm} A three-state Gaussian emission on per-bin allele frequency
+\subsubsection{\binhmm} A three-state Gaussian emission on per-bin allele frequency
 with REF anchored at the coverage floor (dense skim only); off the shared axes.
 \subsubsection{External baselines and control} Two established biparental imputers
 are ported verbatim as external baselines for calibration and benchmarking:
@@ -257,16 +273,16 @@ and per-read error).
 \includegraphics[width=0.85\textwidth]{figures/nnil_sim_calibration.png}
 \caption{\textbf{Ancestry HMM parameter calibrations from \texttt{simcross}
 simulation or chip data are equivalent in the nNIL population.}
-\textbf{(A)} Calibration of the nNIL emission non-informative rate \texttt{nir} by
+\textbf{(A)} Calibration of the \nnil emission non-informative rate \texttt{nir} by
 marker mismatch, scored against the \texttt{simcross} simulated ancestry (blue) and
 against the SNP-chip calls on the 24 both-platform NILs (orange)
 \citep{zhong2025}; open circles mark each minimum ($\texttt{nir}^\star=0.70$
 simulation, $0.80$ chip), dashed verticals the donors' measured non-informative rate
 (blue, realized in the simulation; black, from the chip founder genotypes).
 \textbf{(B)} Donor introgression-size ECDF on the simulated GBS: the
-simulation-calibrated \texttt{nnil} calls (blue) against the BC5S4 simulated ancestry
+simulation-calibrated \nnil calls (blue) against the BC5S4 simulated ancestry
 truth (blue dotted). \textbf{(C)} On the 24 both-platform NILs, introgression-size
-ECDFs of the chip-calibrated (orange) and simulation-calibrated (blue) \texttt{nnil}
+ECDFs of the chip-calibrated (orange) and simulation-calibrated (blue) \nnil
 calls against the chip calls (black dotted); the annotated $p$ is a two-sample
 Kolmogorov-Smirnov test. \textbf{(D)} QQ plot of per-line introgression size from the
 two calibrations applied to the same real GBS; the solid grey line is $1{:}1$.
@@ -283,7 +299,7 @@ Ancestry paint (REF gold, HET green, ALT purple) along the ten B73 v5 chromosome
 the vary-skim cohort, a B73 control plus ten ZEAL NILs spanning the skim coverage
 range (row label: mean skim $\lambda$ and pedigree), with six tracks per line: the
 same lines called through the nilHMM engine from two data sources (skim WGS, BRB-seq)
-crossed with the callers (binhmm, bbNIL, RTIGER, ATLAS). The B73 control paints
+crossed with the callers (\binhmm, \bbnil, \rtiger, \atlas). The B73 control paints
 essentially all-REF across every track, and the source$\times$caller tracks agree on the
 donor-introgression landscape of each NIL, confirming that the named callers are
 configurations of one shared engine rather than independent programs. Compute:
@@ -309,14 +325,14 @@ effective coverage inferred from the observed GBS missing-data rate
 ($\lambda\approx2.7$, with $1\%$ structural dropout and $1\%$ per-read error) and
 converted to hard genotypes by maximum likelihood (a single ALT read yields a
 homozygous-ALT call), matching the TASSEL-GBS calling of \citet{zhong2025}; $40$ lines
-per founder gave $640$ simulated nNILs. The \texttt{nnil} emission non-informative rate
+per founder gave $640$ simulated nNILs. The \nnil emission non-informative rate
 \texttt{nir} was calibrated by minimizing total marker mismatch against the simulated
 ancestry, with the $24$ both-platform SNP-chip nNILs reserved as an independent check.
 
 \subsection{ZEAL calibration}
 For the ZEAL teosinte-introgression NILs we simulated the BC2S2 (and BC2S3) skim
 breeding design directly with \texttt{simcross} and calibrated each engine caller's
-segmentation parameter (bbNIL \texttt{rrate}, RTIGER \texttt{rigidity}) by a two-stage
+segmentation parameter (\bbnil \texttt{rrate}, \rtiger \texttt{rigidity}) by a two-stage
 minimum-distance search (a coarse log-spaced sweep to bracket the optimum, then a
 golden-section refinement) against the donor-fragment distribution of the known mosaic.
 
@@ -399,14 +415,14 @@ Each caller's single segmentation hyperparameter is then set by a two-stage sear
 this truth (a coarse log-spaced sweep to bracket the optimum, then a golden-section
 refinement), maximizing the donor-fragment Dice against the known mosaic
 (Figure~\ref{fig:calib}). The refined optima are $\texttt{rrate}^\star=1.1\times10^{-3}$
-(bbNIL), $\texttt{rigidity}^\star=2$ markers (RTIGER), and
-$\texttt{recombdist}^\star=5.5$\,cM (LB-Impute). The objective is a minimum-distance
+(\bbnil), $\texttt{rigidity}^\star=2$ markers (\rtiger), and
+$\texttt{recombdist}^\star=5.5$\,cM (\lbimpute). The objective is a minimum-distance
 match to the true fragment-size distribution, not a likelihood of the parameter: each
 hyperparameter is a low-pass filter whose cutoff can be raised without bound, so
 marker-level recall saturates near $0.998$ across the whole sweep and rewards
 over-fragmentation, whereas donor-fragment Dice peaks and then collapses as the filter
-is turned up (bbNIL $0.97\rightarrow0.21$ with the breakpoint count exploding from
-${\sim}6{,}200$ to ${\sim}34{,}000$ against ${\sim}6{,}900$ true breakpoints; RTIGER
+is turned up (\bbnil $0.97\rightarrow0.21$ with the breakpoint count exploding from
+${\sim}6{,}200$ to ${\sim}34{,}000$ against ${\sim}6{,}900$ true breakpoints; \rtiger
 $0.97\rightarrow0.76$ from rigidity $2$ to $128$). The intermediate optimum is the
 bias-variance trade-off at the biological fragment scale, which is why the
 calibrated cutoff, not maximal smoothness, is the setting at which callers are
@@ -416,7 +432,7 @@ compared.
 \centering
 \includegraphics[width=\columnwidth]{figures/calib_curves.png}
 \caption{\textbf{Simulation calibration of the segmentation hyperparameters.}
-Two-stage search for bbNIL (\texttt{rrate}) and RTIGER (\texttt{rigidity}) on
+Two-stage search for \bbnil (\texttt{rrate}) and \rtiger (\texttt{rigidity}) on
 \texttt{simcross} BC2S2 truth: donor-fragment Dice (top) and false-discovery rate
 (bottom) over the coarse log-sweep (line), with the golden-section refinement probes
 and the refined optimum (dashed). Dice peaks at an intermediate cutoff and collapses
@@ -430,8 +446,8 @@ motivating the minimum-distance, not maximum-likelihood, objective. Compute:
 Scored on a held-out simulated cohort at their calibrated settings, all three
 duration-aware callers reconstruct the donor mosaic near-perfectly: marker-level
 macro-Dice is ${\approx}0.99$ for each, and on the stricter donor-fragment metric
-LB-Impute leads ($\mathrm{Dice}=0.979$, $\mathrm{FDR}=0.006$), with RTIGER
-($0.967$, $0.013$) and bbNIL ($0.966$, $0.011$) close behind and all recovering the
+\lbimpute leads ($\mathrm{Dice}=0.979$, $\mathrm{FDR}=0.006$), with \rtiger
+($0.967$, $0.013$) and \bbnil ($0.966$, $0.011$) close behind and all recovering the
 ${\sim}6{,}900$ true breakpoints to within a few percent
 (fragment-size $\mathrm{KS}\approx0.02$). The three are therefore near-equivalent on
 raw reconstruction accuracy at skim depth.
@@ -440,10 +456,10 @@ As a cross-modality application we compare skim WGS and $3'$ RNA-seq (BRB-seq) o
 pedigree-matched cohort of $334$ ZEAL NILs genotyped by both assays (skim mean
 $0.43\times$, BRB-seq mean $2.8\times$; the two depths uncorrelated across NILs), so the
 paired design isolates the modality from the sample. On the same skim reads the count
-HMM and the RTIGER port agree closely (marker concordance $0.905$), and among skim
-callers RTIGER and the binned Gaussian caller agree most tightly ($0.945$), so the
-skim donor footprint is essentially caller-independent. Across modalities skim-RTIGER
-and BRB-RTIGER concord at $0.827$ over the whole cohort, and per-NIL donor Jaccard
+HMM and the \rtiger port agree closely (marker concordance $0.905$), and among skim
+callers \rtiger and the binned Gaussian caller agree most tightly ($0.945$), so the
+skim donor footprint is essentially caller-independent. Across modalities skim-\rtiger
+and BRB-\rtiger concord at $0.827$ over the whole cohort, and per-NIL donor Jaccard
 reaches $0.79$ where the pedigrees genuinely correspond: the two assays recover the
 same teosinte-introgression landscape (Figure~\ref{fig:brbskim}).
 
@@ -452,7 +468,7 @@ with fixed emission means: RNA read depth is reference-biased and expression-sca
 a donor-homozygous alt-fraction sits near $0.5$ rather than $1$, and a fixed
 $\theta_{\mathrm{ALT}}\approx1$ collapses true donor-homozygous tracts into heterozygous calls
 (BRB donor genome fraction ${\approx}0.04$ vs.\ ${\approx}0.17$ for skim). This is
-precisely the regime the engine's EM-fittable emission means and the categorical ATLAS
+precisely the regime the engine's EM-fittable emission means and the categorical \atlas
 route are designed for, and re-running the RNA caller with fitted means (rather than the
 provisional fixed-mean run shown here) is the natural next step; we present the paired
 comparison as the current cross-modality evidence, with the calibrated-RNA update
@@ -463,9 +479,9 @@ pending. Chromosome painting appears only as a supplementary QC illustration.
 \includegraphics[width=\columnwidth]{figures/brb_skim_concordance.png}
 \caption{\textbf{Paired skim-WGS and BRB-seq ancestry calls on $334$ NILs.}
 \textbf{A} Pooled genome-wide state concordance between callers on the pedigree-matched
-cohort: same-read cross-caller agreement (green; Skim-RTIGER vs the binned caller
+cohort: same-read cross-caller agreement (green; Skim-\rtiger vs the binned caller
 $0.945$ and vs the count HMM $0.905$) is higher than cross-modality agreement (purple;
-Skim-RTIGER vs BrB-RTIGER $0.827$). \textbf{B} Per-NIL donor-footprint Jaccard for the
+Skim-\rtiger vs BrB-\rtiger $0.827$). \textbf{B} Per-NIL donor-footprint Jaccard for the
 four NILs with both target-seq and BRB-seq, cross-modality (purple) and same-reads
 (green); the two assays recover the same donor landscape (Jaccard up to $0.79$), the one
 low pair (Zx.0540) reflecting a residual BRB-seq identity mismatch. The count HMM on
@@ -492,9 +508,9 @@ measure the fraction of spectral power in the sub-tract noise band (between the 
 resolution $R\approx77$\,kb and the $10$th-percentile resolvable tract
 $P_{10}\approx181$\,kb) and the lag-one autocorrelation of each caller's scan
 (Table~\ref{tab:ranking}). The duration-aware HMMs are an order of magnitude cleaner
-than the no-HMM baselines: binhmm and RTIGER carry ${\sim}0.0005$ of their power in
+than the no-HMM baselines: \binhmm and \rtiger carry ${\sim}0.0005$ of their power in
 the noise band ($\mathrm{acf}_1\approx0.999$) versus ${\sim}0.018$ for the control and
-bbNIL ($\mathrm{acf}_1\approx0.96$), a ${\sim}9\times$ difference, with the two
+\bbnil ($\mathrm{acf}_1\approx0.96$), a ${\sim}9\times$ difference, with the two
 spectral lenses ranking the callers in exactly reverse order as the
 Wiener-Khinchin duality requires. Crucially the smoothest caller is not blindly
 preferred: because each caller is scored at its fragment-scale calibrated cutoff (not
@@ -509,18 +525,18 @@ tests next.
 \toprule
 caller & noise-band power & $\mathrm{acf}_1$ \\
 \midrule
-binhmm    & $0.0004$ & $0.999$ \\
-RTIGER    & $0.0006$ & $0.999$ \\
-LB-Impute & $0.0020$ & $0.993$ \\
+\binhmm    & $0.0004$ & $0.999$ \\
+\rtiger    & $0.0006$ & $0.999$ \\
+\lbimpute & $0.0020$ & $0.993$ \\
 control   & $0.0179$ & $0.959$ \\
-bbNIL     & $0.0179$ & $0.960$ \\
+\bbnil     & $0.0179$ & $0.960$ \\
 \bottomrule
 \end{tabular}
 \caption{\textbf{Spatial-coherence ranking of the association landscape.}
 Fraction of $-\log_{10}P$ spectral power in the sub-tract noise band ($R$ to
 $P_{10}$; lower is cleaner) and lag-one autocorrelation (higher is more coherent) at
 full coverage on the 118K TeoNAM panel. The duration-aware HMMs run ${\sim}9\times$
-cleaner than the no-HMM control and the geometric-only bbNIL; the two lenses rank the
+cleaner than the no-HMM control and the geometric-only \bbnil; the two lenses rank the
 callers in reverse order (Wiener-Khinchin).}
 \label{tab:ranking}
 \end{table}
@@ -541,19 +557,19 @@ associations across all ten chromosomes, dozens clearing $\mathrm{LOD}=5$ (to
 $-\log_{10}P\approx16$), worst at the intermediate coverages where the
 genotype-likelihood scatter is largest and the mixed model has no coherent block
 structure to correct. The duration-aware HMM callers instead keep the scan clean and
-localized across the entire sweep: RTIGER (C) and binhmm (E) are the cleanest, with
+localized across the entire sweep: \rtiger (C) and \binhmm (E) are the cleanest, with
 little surviving threshold beyond a modest \textit{tb1} cluster (chr1) and the chr3
-domestication region; bbNIL (B) is intermediate and LB-Impute (D) close to RTIGER.
+domestication region; \bbnil (B) is intermediate and \lbimpute (D) close to \rtiger.
 This is the same ordering as the band-limited noise metric (Table~\ref{tab:ranking}):
 the duration-aware callers carry ${\sim}9\times$ less high-frequency power than the
-no-HMM control and geometric-only bbNIL, and the two spectral lenses rank them in
+no-HMM control and geometric-only \bbnil, and the two spectral lenses rank them in
 reverse. The one residual HMM artifact is a broad chr3-pericentromeric elevation at
 $0.1\times$ (strongest for the count callers), where poor kinship estimation and block
 recovery in a low-recombination region let structure leak through at the shallowest
 depth. A polygenic second trait (DTA) reproduces the pattern: the mixed model likewise
 removes the ancestry-collinear flowering peaks (\textit{ZmCCT10}, \textit{ZCN8}) and the
-callers separate on the identical cleanliness ranking (RTIGER${\,\approx\,}$binhmm
-cleanest, bbNIL noisiest), so the false-positive-control result is not specific to STAM.
+callers separate on the identical cleanliness ranking (\rtiger${\,\approx\,}$\binhmm
+cleanest, \bbnil noisiest), so the false-positive-control result is not specific to STAM.
 
 \begin{figure}[tbp]
 \centering
@@ -573,11 +589,11 @@ model and feed the same Family$+$K scan: only the genotype caller differs.
 \begin{figure}[t!]
 \ContinuedFloat
 \caption{\textbf{(A)} no-HMM interpolation control (per-site genotype-likelihood,
-Hardy-Weinberg prior); \textbf{(B)}~bbNIL, \textbf{(C)}~RTIGER, \textbf{(D)}~LB-Impute,
-\textbf{(E)}~binhmm. Because the kinship term absorbs the ancestry-collinear
+Hardy-Weinberg prior); \textbf{(B)}~\bbnil, \textbf{(C)}~\rtiger, \textbf{(D)}~\lbimpute,
+\textbf{(E)}~\binhmm. Because the kinship term absorbs the ancestry-collinear
 domestication QTL, the panels are read for genome-wide false-positive control, not peak
 power: the control admits a dense spurious-peak forest (worst at intermediate coverage)
-while the duration-aware callers stay clean and localized, RTIGER and binhmm cleanest
+while the duration-aware callers stay clean and localized, \rtiger and \binhmm cleanest
 (cf.\ Table~\ref{tab:ranking}). Up/down triangles mark $\mathrm{LOD}$-5 loci at
 $\lambda=\infty$~/~$0.5\times$. Dotted line: $\mathrm{LOD}=5$. Compute:
 \texttt{zealhmm/analysis/teonam-qtl-recovery-mlm-118k.qmd}.}
@@ -606,7 +622,7 @@ The approach has real limits. Per-site zygosity is not recoverable at skim depth
 fundamental reasons: a rare-allele prior forces lone alternate reads to
 heterozygous, and outbred-donor dilution compresses the state-conditional alt-fractions,
 so the callers infer \emph{tracts}, not site genotypes, and no emission model lifts
-that ceiling. The RNA route (ATLAS/count HMM on BRB-seq) needs EM-fitted emission means
+that ceiling. The RNA route (\atlas/count HMM on BRB-seq) needs EM-fitted emission means
 because expression scaling and reference bias move the donor-homozygous alt-fraction off
 its textbook value; fixed means mis-call it, as the paired-cohort comparison shows.
 High-coverage target-seq is too sparse in truth samples to calibrate \emph{from} but is
@@ -616,11 +632,11 @@ real-genotype/simulated-read test: it exercises the genotype$\rightarrow$degrade
 architecture, but not the full noise of real low-coverage resequencing.
 
 In practice the engine makes the choice of caller a choice of data channel. Skim DNA
-read counts take the BetaBinomial callers (bbNIL, or RTIGER when a hard minimum run is
+read counts take the BetaBinomial callers (\bbnil, or \rtiger when a hard minimum run is
 wanted); competitive/ASE RNA counts, whose allele fraction is expression-confounded,
-take the GOOGA-thresholded categorical route (GOOGA if geometric, ATLAS if a minimum
+take the \googa-thresholded categorical route (\googa if geometric, \atlas if a minimum
 run is wanted); and saturated hard genotypes
-collapse to the categorical nNIL at lower cost. The cross-modality application
+collapse to the categorical \nnil at lower cost. The cross-modality application
 generalizes this on real ZEAL NILs, with a calibrated-RNA update the natural next step,
 and phenotype-driven applications such as $B1$ anthocyanin mapping follow directly once
 the trait panels are assembled.

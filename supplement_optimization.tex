@@ -20,6 +20,21 @@
 \newcommand{\code}[1]{\texttt{#1}}
 \newcommand{\bigO}{\mathcal{O}}
 \newcommand{\states}{\lvert S\rvert}
+% Caller name macros (mirror of main.tex; see nilhmm/design/TERMINOLOGY.md).
+% Lowercase fixed-width macro = OUR nilhmm caller. Roman "nNIL" = the population,
+% "RTIGER"/"GOOGA" = the upstream algorithm -- write those as plain text, not these.
+% \providecommand so this is a no-op if the supplement is \input into main.tex.
+\usepackage{xspace}
+\providecommand{\nnil}{\texttt{nnil}\xspace}
+\providecommand{\bbnil}{\texttt{bbnil}\xspace}
+\providecommand{\catiger}{\texttt{catiger}\xspace}
+\providecommand{\rtiger}{\texttt{rtiger}\xspace}
+\providecommand{\googa}{\texttt{googa}\xspace}
+\providecommand{\atlas}{\texttt{atlas}\xspace}
+\providecommand{\binhmm}{\texttt{binhmm}\xspace}
+\providecommand{\lbimpute}{\texttt{lbimpute}\xspace}
+\providecommand{\fsfhap}{\texttt{fsfhap}\xspace}
+\providecommand{\pedigree}{\texttt{pedigree}\xspace}
 \setlength{\emergencystretch}{3em}
 
 \title{Supplemental Text: the C++/Rcpp reimplementation\\[2pt]
@@ -42,7 +57,7 @@ runtime that upstream RTIGER \citep{rtiger_2023} requires through
 calibration sweeps and coverage sweeps of the main text at $10^4$ to $10^5$
 markers on a laptop. This supplement gives the RTIGER optimization theory
 (Sec.~\ref{supp:theory}), its implementation and benchmark
-(Sec.~\ref{supp:optimization}), then the nested-NIL (nNIL) reimplementation
+(Sec.~\ref{supp:optimization}), then the nested-NIL (\nnil) reimplementation
 (Sec.~\ref{supp:nnil}).
 \end{sloppypar}
 
@@ -263,7 +278,7 @@ operating value for this \emph{Arabidopsis} panel; every chromosome chain exceed
 the required $2r=500$ covered markers at all five sizes), \code{eps}~$=0.01$.
 Compute: \code{scripts/bench\_rtiger\_r250.R} (C++, all sizes) and
 \code{scripts/rtiger\_julia\_conv\_worker.jl} (original, small sizes). The
-nNIL reproduction (Sec.~\ref{supp:nnil}) uses the Zhong \emph{et al.} nested-NIL
+\nnil reproduction (Sec.~\ref{supp:nnil}) uses the Zhong \emph{et al.} nested-NIL
 panel.
 
 \paragraph{Environment.} All timings are wall-clock on an Apple M4 (10 cores,
@@ -393,10 +408,10 @@ The speed-up grows with problem size because the C++ core is near-linear
 \end{table}
 
 %======================================================================
-\section{The nNIL reimplementation: reproduction and scaling}
+\section{The \nnil reimplementation: reproduction and scaling}
 \label{supp:nnil}
 %======================================================================
-nilHMM's \code{nNIL} caller (categorical genotype-confusion emission, geometric
+nilHMM's \nnil caller (categorical genotype-confusion emission, geometric
 duration) reimplements Holland's nested-NIL HMM \citep{zhong2025}. The
 reimplementation is faithful by construction: the $3\times4$ emission matrix (three
 ancestry states $\times$ \{REF, het, donor, missing\} calls) is transcribed
@@ -448,7 +463,7 @@ markers / line & Viterbi match / states & mismatches & mismatch rate & at inform
 1{,}001  & 888{,}848 / 888{,}888           & 40  & $4.5\times10^{-5}$ & 0 \\
 \bottomrule
 \end{tabular}
-\caption{nilHMM \code{nNIL} vs Holland's original Python (\code{hmmlearn}) on the
+\caption{nilHMM \nnil vs Holland's original Python (\code{hmmlearn}) on the
 full Zhong \emph{et al.} nNIL population (888 lines), over an odd-index
 marker-density sweep of the 64{,}025-marker panel, both cores run on the same
 \code{File\_S10}-filtered genotypes and the identical per-size transition rate. The
@@ -479,10 +494,10 @@ cleanly with density.
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=\textwidth]{figures/nnil_marker_scaling.png}
-\caption{nNIL caller scaling with marker density over the full 888-line population
+\caption{\nnil caller scaling with marker density over the full 888-line population
 (odd-index thinning of the 64{,}025-marker panel, shared memory-mapped
 \code{.bed}). \textbf{Left:} wall time (log-log, power-law fits); the C++/Rcpp
-\code{nNIL} is $\sim$4$\times$ faster. \textbf{Right:} peak resident memory (each
+\nnil is $\sim$4$\times$ faster. \textbf{Right:} peak resident memory (each
 process reads only its thinned marker set); nilHMM streams rows and stays low while
 the \code{hmmlearn} caller reads the genotype matrix into memory, and the gap widens.
 Compute: \code{scripts/nnil\_equiv/06\_sweep.R}.}

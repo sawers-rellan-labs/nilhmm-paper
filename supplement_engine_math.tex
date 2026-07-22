@@ -30,6 +30,21 @@
 \newcommand{\miss}{\mathrm{miss}}
 \newcommand{\cov}{\lambda}                          % per-marker coverage
 \newcommand{\code}[1]{\texttt{#1}}
+% Caller name macros (mirror of main.tex; see nilhmm/design/TERMINOLOGY.md).
+% Lowercase fixed-width macro = OUR nilhmm caller. Roman "nNIL" = the population,
+% "RTIGER"/"GOOGA" = the upstream algorithm -- write those as plain text, not these.
+% \providecommand so this is a no-op if the supplement is \input into main.tex.
+\usepackage{xspace}
+\providecommand{\nnil}{\texttt{nnil}\xspace}
+\providecommand{\bbnil}{\texttt{bbnil}\xspace}
+\providecommand{\catiger}{\texttt{catiger}\xspace}
+\providecommand{\rtiger}{\texttt{rtiger}\xspace}
+\providecommand{\googa}{\texttt{googa}\xspace}
+\providecommand{\atlas}{\texttt{atlas}\xspace}
+\providecommand{\binhmm}{\texttt{binhmm}\xspace}
+\providecommand{\lbimpute}{\texttt{lbimpute}\xspace}
+\providecommand{\fsfhap}{\texttt{fsfhap}\xspace}
+\providecommand{\pedigree}{\texttt{pedigree}\xspace}
 
 \title{Supplemental Texts\\[2pt]
 \large Simulation-calibrated HMM ancestry calling for near-isogenic lines\\
@@ -568,11 +583,11 @@ The named callers are not separate programs but points in the engine's
 $(\text{emission}\times\text{duration}+\text{priors})$ space
 (Table~\ref{tab:callers}; main-text Fig.~1; the data-channel view is Fig.~\ref{fig:dispatcher}). Four are the pure cells of the shared engine of
 Text~S3 --- the $(\text{emission}\times\text{duration})$ grid; on the categorical emission a
-hard-call thresholding front-end splits each cell by data type, so GOOGA and ATLAS occupy the two
-categorical coordinates reached through GOOGA transcript thresholding (of competitive-alignment RNA)
-rather than the hard calls arrays already provide (GOOGA geometric, a faithful port; ATLAS rigidity, this
-work); binhmm is an off-axis Gaussian
-track; the family-coupled pedigree caller (Text~\ref{sec:pedigree}) adds a structural axis beyond the
+hard-call thresholding front-end splits each cell by data type, so \googa and \atlas occupy the two
+categorical coordinates reached through \googa transcript thresholding (of competitive-alignment RNA)
+rather than the hard calls arrays already provide (\googa geometric, a faithful port; \atlas rigidity, this
+work); \binhmm is an off-axis Gaussian
+track; the family-coupled \pedigree caller (Text~\ref{sec:pedigree}) adds a structural axis beyond the
 grid; two are faithful ports of external biparental imputers, carried as baselines; and one is a
 deliberately unsmoothed control. These biparental-population callers are the
 low-coverage analogues of the population-scale local-ancestry and haplotype-imputation
@@ -588,30 +603,30 @@ the same one Text~S7 formalizes.
 \toprule
 caller & emission & threshold & duration & key param & role \\
 \midrule
-nNIL      & categorical GT       & ---     & geometric            & \texttt{rrate}      & Holland's original nNIL; hard-call baseline \\
-catiger   & categorical GT       & ---     & rigidity             & \texttt{rigidity}   & hard-call $+$ min.\ run length (this work) \\
-GOOGA     & categorical GT       & GOOGA   & geometric            & \texttt{rrate}      & competitive-mapping (ASE) ancestry; faithful port of Flagel's HMM \\
-ATLAS     & categorical GT       & GOOGA   & rigidity             & \texttt{rigidity}   & GOOGA thresholds $+$ min.\ run for sparse per-gene calls (this work) \\
-bbNIL     & count / BetaBin      & ---     & geometric            & \texttt{rrate}      & low-coverage count extension; the self-transition \emph{is} the smoother \\
-RTIGER    & count / BetaBin      & ---     & rigidity             & \texttt{rigidity}   & min.\ run length; robust at low depth (Julia-free port) \\
+\nnil      & categorical GT       & ---     & geometric            & \texttt{rrate}      & Holland's original nNIL; hard-call baseline \\
+\catiger   & categorical GT       & ---     & rigidity             & \texttt{rigidity}   & hard-call $+$ min.\ run length (this work) \\
+\googa     & categorical GT       & \googa   & geometric            & \texttt{rrate}      & competitive-mapping (ASE) ancestry; faithful port of Flagel's HMM \\
+\atlas     & categorical GT       & \googa   & rigidity             & \texttt{rigidity}   & \googa thresholds $+$ min.\ run for sparse per-gene calls (this work) \\
+\bbnil     & count / BetaBin      & ---     & geometric            & \texttt{rrate}      & low-coverage count extension; the self-transition \emph{is} the smoother \\
+\rtiger    & count / BetaBin      & ---     & rigidity             & \texttt{rigidity}   & min.\ run length; robust at low depth (Julia-free port) \\
 \midrule
-binhmm    & Gaussian / $1$\,Mb bins & ---  & sticky            & bin width           & pre-bin $\to$ 3-state Gaussian HMM; full SNP density (skim) \\
-LB-Impute & external             & ---     & linkage-decay dist.\ & \texttt{recombdist} & Fragoso \emph{et al.}\ biparental imputer (ported baseline) \\
-FSFHap    & external             & ---     & family-pooled EM     & \texttt{phet}       & TASSEL parent-call $+$ 5-state EM (ported baseline) \\
-pedigree  & count or GT          & ---     & pedigree $\times$ genome BP & \texttt{design} & family-coupled belief propagation; couples relatives across the pedigree \\
+\binhmm    & Gaussian / $1$\,Mb bins & ---  & sticky            & bin width           & pre-bin $\to$ 3-state Gaussian HMM; full SNP density (skim) \\
+\lbimpute & external             & ---     & linkage-decay dist.\ & \texttt{recombdist} & Fragoso \emph{et al.}\ biparental imputer (ported baseline) \\
+\fsfhap    & external             & ---     & family-pooled EM     & \texttt{phet}       & TASSEL parent-call $+$ 5-state EM (ported baseline) \\
+\pedigree  & count or GT          & ---     & pedigree $\times$ genome BP & \texttt{design} & family-coupled belief propagation; couples relatives across the pedigree \\
 \bottomrule
 \end{tabular}
 \caption{The caller family. Top: the $(\text{emission}\times\text{duration})$ cells of the
-shared engine of Text~S3 --- \textbf{nNIL}/\textbf{catiger} (categorical confusion emission;
-geometric/rigidity) and \textbf{bbNIL}/\textbf{RTIGER} (BetaBinomial; geometric/rigidity). The
-\emph{threshold} column marks the hard-call front-end that feeds the categorical emission: nNIL/catiger
+shared engine of Text~S3 --- \textbf{\nnil}/\textbf{\catiger} (categorical confusion emission;
+geometric/rigidity) and \textbf{\bbnil}/\textbf{\rtiger} (BetaBinomial; geometric/rigidity). The
+\emph{threshold} column marks the hard-call front-end that feeds the categorical emission: \nnil/\catiger
 consume the hard genotype calls SNP/dosage arrays already provide (no named thresholding step), while
-\textbf{GOOGA} and \textbf{ATLAS} reach the same two categorical coordinates through GOOGA transcript
-thresholding of competitive-alignment (allele-specific-expression) RNA --- GOOGA geometric (a faithful
-port of Flagel's HMM), ATLAS rigidity (this work). Bottom: an off-axis
-Gaussian track, two external ports, and the family-coupled \textbf{pedigree} caller (Text~\ref{sec:pedigree}).
+\textbf{\googa} and \textbf{\atlas} reach the same two categorical coordinates through \googa transcript
+thresholding of competitive-alignment (allele-specific-expression) RNA --- \googa geometric (a faithful
+port of Flagel's HMM), \atlas rigidity (this work). Bottom: an off-axis
+Gaussian track, two external ports, and the family-coupled \textbf{\pedigree} caller (Text~\ref{sec:pedigree}).
 RTIGER and TIGER \citep{rtiger_2023,tiger_2015};
-GOOGA/ATLAS \citep{flagel2019,veltsos2024}; LB-Impute \citep{lbimpute_2016}.}
+\googa/\atlas \citep{flagel2019,veltsos2024}; LB-Impute \citep{lbimpute_2016}.}
 \label{tab:callers}
 \end{table}
 
@@ -623,32 +638,32 @@ assay) determines the valid emission --- a specification constraint, since the c
 actually obey the emission model --- and only the duration remains a free choice, except on the
 categorical emission, where a hard-call thresholding front-end also forks by data type. Hard
 genotypes (SNP arrays) take the categorical emission directly as calls (geometric/rigidity
-$\to$ nNIL/catiger); competitive/ASE transcript counts take it via GOOGA thresholds (geometric/rigidity
-$\to$ GOOGA/ATLAS); dosage read counts take the BetaBinomial (bbNIL/RTIGER); binned allele fractions
-take a Gaussian (binhmm). The red $\times$ arrows mark the
+$\to$ \nnil/\catiger); competitive/ASE transcript counts take it via \googa thresholds (geometric/rigidity
+$\to$ \googa/\atlas); dosage read counts take the BetaBinomial (\bbnil/\rtiger); binned allele fractions
+take a Gaussian (\binhmm). The red $\times$ arrows mark the
 easily-misused routes that feed the BetaBinomial data it cannot model --- hard genotypes as
 pseudo-counts, and ASE counts whose allele fraction is expression-confounded --- both into
-RTIGER.}
+\rtiger.}
 \label{fig:dispatcher}
 \end{figure}
 
 The four shared-engine callers differ only along the two axes of Text~S3. Holding the emission
-at the categorical confusion model, \textbf{nNIL} (geometric --- Holland's original) and
-\textbf{catiger} (rigidity) differ only in duration; holding it at the BetaBinomial, \textbf{bbNIL}
-(geometric) and \textbf{RTIGER} (rigidity) do the same. Read across the other axis, nNIL/bbNIL share
-the geometric duration and catiger/RTIGER share rigidity, differing only in emission. \textbf{catiger}
-is the categorical$+$rigidity caller. \textbf{GOOGA} and \textbf{ATLAS} reach the two categorical
+at the categorical confusion model, \textbf{\nnil} (geometric --- Holland's original) and
+\textbf{\catiger} (rigidity) differ only in duration; holding it at the BetaBinomial, \textbf{\bbnil}
+(geometric) and \textbf{\rtiger} (rigidity) do the same. Read across the other axis, \nnil/\bbnil share
+the geometric duration and \catiger/\rtiger share rigidity, differing only in emission. \textbf{\catiger}
+is the categorical$+$rigidity caller. \textbf{\googa} and \textbf{\atlas} reach the two categorical
 coordinates through a different hard-call front-end, for competitive-alignment RNA / ASE data: because
 expression and allele-specific expression confound the allele fraction (so the BetaBinomial cannot model
-it), both threshold the competitive counts to hard calls through GOOGA's per-marker error-rate model
-\citep{flagel2019} and then run the categorical genotype-confusion emission. GOOGA pairs it with the
+it), both threshold the competitive counts to hard calls through \googa's per-marker error-rate model
+\citep{flagel2019} and then run the categorical genotype-confusion emission. \googa pairs it with the
 geometric duration --- a faithful port whose Markov chain transitions on recombination fractions between
-adjacent markers with no minimum-run constraint \citep{flagel2019,veltsos2024}; ATLAS substitutes the
+adjacent markers with no minimum-run constraint \citep{flagel2019,veltsos2024}; \atlas substitutes the
 rigidity duration, a minimum-run prior suited to the sparse per-gene calls of transcript data (this work).
-This GOOGA thresholding is a front-end on the categorical emission, not a grid axis; the dispatcher
-(Fig.~\ref{fig:dispatcher}) routes each data channel to its caller. \textbf{binhmm} pre-bins to $\sim$1\,Mb before a 3-state
+This \googa thresholding is a front-end on the categorical emission, not a grid axis; the dispatcher
+(Fig.~\ref{fig:dispatcher}) routes each data channel to its caller. \textbf{\binhmm} pre-bins to $\sim$1\,Mb before a 3-state
 Gaussian HMM, the only track that keeps the full marker density on skim data.
-\textbf{LB-Impute} and \textbf{FSFHap} are ported verbatim as external baselines ---
+\textbf{\lbimpute} and \textbf{\fsfhap} are ported verbatim as external baselines ---
 each carries its own transition/imputation model (a distance-dependent
 recombination decay, and per-family EM haplotype imputation, respectively) but emits
 the common segment schema, so they are directly comparable. The \emph{control} baseline
@@ -721,8 +736,8 @@ which segment endpoints, not the caller, limit accuracy.
 \label{sec:calibration}
 %======================================================================
 
-Each caller carries one free segmentation parameter --- nNIL's \texttt{rrate},
-RTIGER's \texttt{rigidity}, LB-Impute's \texttt{recombdist} --- and we set it from the
+Each caller carries one free segmentation parameter --- \nnil's \texttt{rrate},
+\rtiger's \texttt{rigidity}, \lbimpute's \texttt{recombdist} --- and we set it from the
 simulated truth of Text~S5 rather than by eye. The search is two-stage: a coarse
 log-spaced sweep brackets the optimum, then a golden-section refinement
 (ratio $(\sqrt5-1)/2$) on the continuous $\log_{10}$ parameter locates it, all from a
@@ -771,11 +786,11 @@ shorter ones as noise. That the optimum is intermediate --- under-smoothing make
 false switches, over-smoothing erases true breakpoints --- is the bias--variance
 trade-off \citep{geman_1992}, and the residual attenuation from imperfect ancestry
 recovery is regression dilution \citep{frost_thompson_2000}. On the BZea BC2S2
-benchmark the refined values are $\texttt{rrate}^\star\approx1.1\times10^{-3}$ (nNIL)
-and $\texttt{rigidity}^\star=2$ (RTIGER); at those settings the held-out benchmark
+benchmark the refined values are $\texttt{rrate}^\star\approx1.1\times10^{-3}$ (\nnil)
+and $\texttt{rigidity}^\star=2$ (\rtiger); at those settings the held-out benchmark
 reaches marker-level Dice $\approx0.99$ and donor-fragment Dice $\approx0.97$ at
 $\mathrm{FDR}\approx0.01$. For the coverage sweep, each caller is recalibrated per
-coverage by minimum donor-fragment FDR, and RTIGER's rigidity is feasibility-capped
+coverage by minimum donor-fragment FDR, and \rtiger's rigidity is feasibility-capped
 so every chromosome retains more than $2r$ covered markers.
 
 %======================================================================
@@ -899,19 +914,19 @@ fraction $\texttt{fft\_band}$, the Haar wavelet band-detail fraction
 $\texttt{wav\_band}$, and the lag-one autocorrelation $\texttt{acf\_lag1}$. As
 Wiener--Khinchin predicts, $\texttt{fft\_band}$ (ascending $=$ cleaner) and
 $\texttt{acf\_lag1}$ (descending $=$ more coherent) rank the callers in reverse order
-(Table~\ref{tab:noisiness}): the duration-aware HMMs \texttt{binhmm}/\texttt{rtiger}
-are least noisy and the no-HMM \texttt{control}/\texttt{nNIL} noisiest.
+(Table~\ref{tab:noisiness}): the duration-aware HMMs \binhmm/\rtiger
+are least noisy and the no-HMM \texttt{control}/\nnil noisiest.
 \begin{table}[t]
 \centering
 \begin{tabular}{l c c c}
 \toprule
 caller & \texttt{fft\_band} & \texttt{wav\_band} & \texttt{acf\_lag1} \\
 \midrule
-binhmm   & $0.0004$ & $0.0008$ & $0.999$  \\
-rtiger   & $0.0006$ & $0.0012$ & $0.9988$ \\
-lbimpute & $0.0020$ & $0.0065$ & $0.9932$ \\
+\binhmm   & $0.0004$ & $0.0008$ & $0.999$  \\
+\rtiger   & $0.0006$ & $0.0012$ & $0.9988$ \\
+\lbimpute & $0.0020$ & $0.0065$ & $0.9932$ \\
 control  & $0.0179$ & $0.0452$ & $0.9586$ \\
-nnil     & $0.0179$ & $0.0445$ & $0.9597$ \\
+\nnil     & $0.0179$ & $0.0445$ & $0.9597$ \\
 \bottomrule
 \end{tabular}
 \caption{Spatial-coherence ranking of the STAM $-\log_{10}P$ track at
@@ -944,7 +959,7 @@ minimum-distance fit (Text~S6), not maximal smoothness.
 \label{sec:rhmm}
 %======================================================================
 
-The \texttt{rtiger} caller is a Julia-free R/Rcpp port of the robust rigid-HMM (rHMM)
+The \rtiger caller is a Julia-free R/Rcpp port of the robust rigid-HMM (rHMM)
 of \citet{rtiger_2023}, which itself extends the TIGER genotyping-by-sequencing
 pipeline \citep{tiger_2015}. Unlike the fixed-transition Erlang duration layer of
 Text~S3.3 (which regularizes run length but does not learn the transition), the rHMM
@@ -1046,10 +1061,10 @@ Every caller of Text~S3--S4 decodes each individual's chromosome independently. 
 a structured breeding population that leaves information on the table: siblings of a
 selfing family inherit overlapping donor blocks from a shared ancestor, so their
 genotypes are correlated through the pedigree, not just along the chromosome. The
-pedigree caller adds that missing coupling --- a \emph{third} structural axis beyond
+\pedigree caller adds that missing coupling --- a \emph{third} structural axis beyond
 the emission and duration of Text~S3, namely inter-individual coupling through the
 known family tree. It is the family-pooled analogue of the single-chain callers (in
-the same spirit as the family-pooled FSFHap of Text~S4), and it reduces the
+the same spirit as the family-pooled \fsfhap of Text~S4), and it reduces the
 predictor error of Text~S7.3 using Mendelian structure the single-chain callers
 ignore.
 
